@@ -124,8 +124,11 @@ jobs:
       EXPECTED_REQUEST_ARTIFACT_ID: ${{ needs.prepare.outputs.request_artifact_id }}
       TRIGGERING_ACTOR: ${{ github.triggering_actor }}
       INITIAL_ACTOR: ${{ github.actor }}
-      SOURCE_RESULT_DIR: ${{ runner.temp }}/squad-source-result
     steps:
+      - name: Initialize runner-local artifact path
+        run: |
+          set -euo pipefail
+          printf 'SOURCE_RESULT_DIR=%s/squad-source-result\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.prepare.outputs.base_sha }}
@@ -220,9 +223,6 @@ jobs:
       actions: read
       issues: write
     env:
-      REQUEST_DIR: ${{ runner.temp }}/squad-review-request
-      REVIEW_RESULT_DIR: ${{ runner.temp }}/squad-review-result
-      SOURCE_RESULT_DIR: ${{ runner.temp }}/squad-source-result
       EXPECTED_BASE_SHA: ${{ needs.prepare.outputs.base_sha }}
       EXPECTED_REQUEST_SHA256: ${{ needs.prepare.outputs.request_sha256 }}
       EXPECTED_REQUEST_ATTEMPT: ${{ needs.prepare.outputs.request_attempt }}
@@ -234,6 +234,12 @@ jobs:
       EXPECTED_REVIEW_ARTIFACT_ID: ${{ needs.review.outputs.result_artifact_id }}
       TRIGGERING_ACTOR: ${{ github.triggering_actor }}
     steps:
+      - name: Initialize runner-local artifact paths
+        run: |
+          set -euo pipefail
+          printf 'REQUEST_DIR=%s/squad-review-request\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'REVIEW_RESULT_DIR=%s/squad-review-result\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'SOURCE_RESULT_DIR=%s/squad-source-result\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.prepare.outputs.base_sha }}

@@ -510,6 +510,24 @@ async function run() {
   });
   const workflow = fs.readFileSync(path.join(original, '.github/workflows/squad-review.yml'), 'utf8').replace(/\r\n/g, '\n');
   const generator = fs.readFileSync(path.join(original, '.github/workflows/squad-watch.yml'), 'utf8').replace(/\r\n/g, '\n');
+  await test('job environment uses supported contexts and initializes runner paths at step time', () => {
+    for (const definition of [workflow, generator]) {
+      for (const block of definition.matchAll(/^    env:\n((?:^      [^\n]*\n)+)/gm)) {
+        assert.doesNotMatch(block[1], /\$\{\{\s*(?:runner|env|steps|job)\./,
+          'These contexts are unavailable in jobs.<job_id>.env');
+      }
+    }
+    const reviewJob = workflow.split('\n  review:')[1].split('\n  publish:')[0];
+    const publishJob = workflow.split('\n  publish:')[1];
+    assert(reviewJob.includes("printf 'SOURCE_RESULT_DIR=%s/squad-source-result\\n'"));
+    for (const name of ['REQUEST_DIR', 'REVIEW_RESULT_DIR', 'SOURCE_RESULT_DIR']) {
+      assert(publishJob.includes(`printf '${name}=%s/`));
+    }
+    for (const job of [reviewJob, publishJob]) {
+      assert(job.indexOf('Initialize runner-local artifact path') < job.indexOf('- uses: actions/checkout@'));
+      assert(job.includes('"$RUNNER_TEMP" >> "$GITHUB_ENV"'));
+    }
+  });
   await test('actual embedded dispatcher sends exact PR/source-attempt/artifact linkage and explicit failure recovery', async () => {
     const block = generator.split('\n  dispatch-review:')[1].split('\n  notify:')[0];
     const script = block.split('script: |\n')[1].split('\n')
