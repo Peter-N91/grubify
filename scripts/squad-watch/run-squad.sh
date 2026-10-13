@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -z "${COPILOT_GITHUB_TOKEN:-}" ]]; then
+  echo "::error::Missing dedicated Copilot Requests-only COPILOT_GITHUB_TOKEN."
+  exit 1
+fi
+MODEL="$(node -e "process.stdout.write(require('./.watch-run/request.json').model)")"
+CREDITS="$(node -e "process.stdout.write(String(require('./.watch-run/request.json').maxAiCredits))")"
+[[ "$MODEL" == "claude-sonnet-5" && "$CREDITS" =~ ^[0-9]+$ ]]
+(( CREDITS >= 30 && CREDITS <= 90 ))
+
+# Only the Requests-only credential reaches the CLI. Its tool subprocesses
+# receive no copy of that secret. No raw CLI output/session artifact is published.
+unset GH_TOKEN GITHUB_TOKEN
+export COPILOT_HOME="$PWD/.watch-run/copilot-home"
+mkdir -p "$COPILOT_HOME"
+set +e
+timeout --signal=TERM --kill-after=30s 30m \
+  copilot --no-auto-update \
+    --agent squad-federation-coordinator \
+    --model "$MODEL" \
+    --max-ai-credits "$CREDITS" \
+    --no-ask-user \
+    --disable-builtin-mcps \
+    --secret-env-vars=COPILOT_GITHUB_TOKEN \
+    --log-level none \
+    --allow-all-tools \
+    --deny-tool='shell(git push)' \
+    --deny-tool='shell(gh pr)' \
+    --deny-tool='shell(gh issue)' \
+    --deny-tool='shell(az)' \
+    --deny-tool='shell(azd)' \
+    --deny-tool='shell(terraform)' \
+    --deny-tool='shell(copilot)' \
+    -p "$(cat .watch-run/prompt.txt)" \
+    >/dev/null 2>&1
+RESULT=$?
+set -e
+if (( RESULT != 0 )); then
+  echo "::error::Squad interpretation failed or reached its time/credit/runtime bound (exit $RESULT). Raw CLI output is intentionally not published; no mutation handoff will be applied."
+  exit "$RESULT"
+fi

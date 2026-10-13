@@ -61,3 +61,15 @@ logs
 # Temporary files
 *.tmp
 *.temp
+
+
+# APM dependencies
+apm_modules/
+
+# APM-deployed third-party assets: reinstall from the reviewed frozen lock.
+/.agents/
+/.github/agents/
+/.github/instructions/
+/.github/prompts/
+/.watch-run/
+/.watch-validation/
