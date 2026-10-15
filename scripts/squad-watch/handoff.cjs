@@ -21,6 +21,9 @@ function prompt(request) {
     'Run /squad-federation mode=autopilot',
     `watch="source=${request.source} ref=${request.ref} eventId=${request.eventId} actor=${request.actor} sub=${request.subSquad}"`,
     'Run Watch Mode Bootstrap first. Initialize/expand an event-scoped federation;',
+    'The workflow has already passed Watch opt-in and actor authorization.',
+    'Execute the bootstrap and role dispatch now; do not merely describe commands',
+    'or return a code block. Only the real Squad Scribe may create audit state.',
     'reuse matching watch-owned provenance only. Never author deliverables inline:',
     'dispatch the cast and let the Scribe write state and per-role histories.',
     `All event deliverables live under .copilot-tracking/squad/members/${request.subSquad}/.`,
@@ -78,16 +81,12 @@ function stage(request, cfg, destination) {
     'Model changed/committed the base; refusing handoff');
   p.check(!p.git(['diff', '--cached', '--name-only']).toString().trim(),
     'Model must leave an unstaged, uncommitted proposal');
-  const paths = p.git(['ls-files', '--modified', '--deleted', '--others', '--exclude-standard', '-z'])
-    .toString('utf8').split('\0').filter(Boolean);
-  for (const filename of paths) p.safePath(filename, cfg, request.subSquad);
-  // Attributes cannot enter this path set, so git add cannot load a new filter.
-  if (paths.length) p.git(['add', '-A', '--', ...paths]);
+  p.stageProposal(cfg, request.subSquad);
   const changes = p.changes(cfg, request.subSquad);
   const patch = p.git(['diff', '--cached', '--binary', '--no-renames', '--no-ext-diff', '--no-textconv']);
   p.check(patch.length <= cfg.maximumPatchBytes, 'Patch exceeds size bound');
   p.sanitized(p.text(patch));
-  if (changes.length) p.audit(request);
+  p.audit(request);
   const manifest = {
     schemaVersion: 1,
     ...origin,
@@ -106,17 +105,22 @@ function stage(request, cfg, destination) {
 }
 
 if (require.main === module) {
-  const request = JSON.parse(fs.readFileSync('.watch-run/request.json', 'utf8'));
-  const cfg = p.config();
-  if (process.argv[2] === 'prompt') {
-    fs.writeFileSync('.watch-run/prompt.txt', prompt(request));
-  } else if (process.argv[2] === 'stage') {
-    const origin = stage(request, cfg, process.env.HANDOFF_DIR);
-    p.check(process.env.TRIGGERING_ACTOR, 'Missing interpretation actor');
-    fs.appendFileSync(process.env.GITHUB_OUTPUT,
-      `producer_attempt=${origin.runAttempt}\nartifact_name=squad-handoff-${origin.runId}-${origin.runAttempt}\n`);
-  } else {
-    throw new Error('Expected prompt or stage');
+  try {
+    const request = JSON.parse(fs.readFileSync('.watch-run/request.json', 'utf8'));
+    const cfg = p.config();
+    if (process.argv[2] === 'prompt') {
+      fs.writeFileSync('.watch-run/prompt.txt', prompt(request));
+    } else if (process.argv[2] === 'stage') {
+      const origin = stage(request, cfg, process.env.HANDOFF_DIR);
+      p.check(process.env.TRIGGERING_ACTOR, 'Missing interpretation actor');
+      fs.appendFileSync(process.env.GITHUB_OUTPUT,
+        `producer_attempt=${origin.runAttempt}\nartifact_name=squad-handoff-${origin.runId}-${origin.runAttempt}\n`);
+    } else {
+      throw new Error('Expected prompt or stage');
+    }
+  } catch (error) {
+    console.error(`::error::${require('./diagnostics.cjs').stageError(error)}`);
+    process.exitCode = 1;
   }
 }
 

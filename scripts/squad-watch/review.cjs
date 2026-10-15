@@ -397,11 +397,8 @@ function stage(context) {
   const { request, cfg, input } = readRequest(context);
   p.check(p.git(['rev-parse', 'HEAD']).toString().trim() === request.baseSha &&
     !p.git(['diff', '--cached', '--name-only']).toString().trim(), 'Review must leave trusted base uncommitted/unstaged');
-  const filenames = p.git(['ls-files', '--modified', '--deleted', '--others', '--exclude-standard', '-z'])
-    .toString('utf8').split('\0').filter(Boolean);
-  for (const filename of filenames) auditPath(filename, cfg, request);
+  const filenames = p.stageProposal(cfg, request.subSquad, filename => auditPath(filename, cfg, request));
   p.check(filenames.length > 0, 'Review produced no real event audit');
-  p.git(['add', '-A', '--', ...filenames]);
   const changes = p.changes(cfg, request.subSquad);
   p.audit(request);
   const audit = changes.map(file => {
@@ -489,7 +486,7 @@ async function publish({ github, context, core }) {
     fs.mkdirSync(path.dirname(file.path), { recursive: true });
     fs.writeFileSync(file.path, file.content);
   }
-  p.git(['add', '--', ...result.audit.map(file => file.path)]);
+  p.git(['add', '-f', '--', ...result.audit.map(file => file.path)]);
   p.changes(cfg, request.subSquad);
   p.audit(request);
   const reportPath = `.copilot-tracking/squad/members/${request.subSquad}/review.json`;
@@ -509,9 +506,14 @@ if (require.main === module) {
   if (process.argv[2] === 'prompt') {
     fs.writeFileSync(path.join(process.env.REQUEST_DIR, 'prompt.txt'), prompt(readRequest(context).request));
   } else if (process.argv[2] === 'stage') {
-    const result = stage(context);
-    fs.appendFileSync(process.env.GITHUB_OUTPUT,
-      `result_sha256=${result.digest}\nartifact_name=${result.name}\nproducer_attempt=${result.attempt}\n`);
+    try {
+      const result = stage(context);
+      fs.appendFileSync(process.env.GITHUB_OUTPUT,
+        `result_sha256=${result.digest}\nartifact_name=${result.name}\nproducer_attempt=${result.attempt}\n`);
+    } catch (error) {
+      console.error(`::error::${require('./diagnostics.cjs').stageError(error)}`);
+      process.exitCode = 1;
+    }
   } else throw new Error('Expected prompt or stage');
 }
 

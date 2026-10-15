@@ -29,7 +29,7 @@ function validateArtifact(request, cfg, directory) {
     !p.git(['status', '--porcelain']).toString().trim(), 'Apply checkout must be a clean, exact base');
   if (manifest.status === 'no-change') {
     p.check(patch.length === 0 && manifest.files.length === 0, 'Invalid no-change artifact');
-    return { changes: [], audit: null };
+    return { changes: [], audit: p.audit(request) };
   }
   p.check(manifest.status === 'changed' && patch.length > 0, 'Invalid artifact status');
   p.sanitized(p.text(patch));

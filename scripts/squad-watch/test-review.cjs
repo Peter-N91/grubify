@@ -9,7 +9,7 @@ const p = require('./policy.cjs');
 const review = require('./review.cjs');
 const original = process.cwd();
 const cfg = p.config();
-const directory = path.join(original, '.watch-validation', 'review-contracts');
+const directory = path.join(original, '.watch-validation', `review-contracts-${process.platform}-${process.pid}`);
 const clone = path.join(directory, 'checkout');
 let passed = 0;
 let baseSha;
@@ -21,6 +21,7 @@ function write(filename, bytes) {
 
 function clean() {
   assert.equal(process.cwd(), clone);
+  fs.rmSync(path.join(clone, '.copilot-tracking', 'squad'), { force: true, recursive: true });
   for (const filename of p.git(['ls-files', '--cached', '--others', '--exclude-standard', '-z'])
     .toString().split('\0').filter(Boolean)) {
     const absolute = path.resolve(filename);
@@ -156,6 +157,22 @@ async function run() {
   process.env.SOURCE_RESULT_DIR = path.join(directory, 'source');
   process.env.REVIEW_RESULT_DIR = path.join(directory, 'review-result');
   process.env.GITHUB_RUN_ID = '456';
+  await test('ignored real review audit stages and independently reconstructs before publication', async () => {
+    const api = fixture();
+    const request = await prepare(api);
+    evidence(request);
+    const previous = fs.readFileSync('.git/info/exclude');
+    fs.appendFileSync('.git/info/exclude', '\n/.copilot-tracking/squad/\n');
+    try {
+      staged(api);
+      clean();
+      await review.publish(api);
+      assert.equal(api.writes.length, 1);
+      assert(api.writes[0].body.includes('NOT approval'));
+    } finally {
+      fs.writeFileSync('.git/info/exclude', previous);
+    }
+  });
   await test('automatic producer, not current review run, selects immutable source ID', async () => {
     const api = fixture();
     await review.select(api);

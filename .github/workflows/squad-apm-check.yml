@@ -7,6 +7,8 @@ on:
       - apm.lock.yaml
       - .github/squad-watch.json
       - .github/workflows/squad-apm-check.yml
+      - .github/workflows/squad-watch.yml
+      - .github/workflows/squad-review.yml
       - scripts/squad-watch/**
   push:
     branches: [main]
@@ -15,6 +17,8 @@ on:
       - apm.lock.yaml
       - .github/squad-watch.json
       - .github/workflows/squad-apm-check.yml
+      - .github/workflows/squad-watch.yml
+      - .github/workflows/squad-review.yml
       - scripts/squad-watch/**
 
 permissions:
@@ -28,8 +32,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Offline portability contracts
-        run: node scripts/squad-watch/test-apm.cjs
+      - name: Offline Watch, review and portability contracts
+        run: |
+          node scripts/squad-watch/test.cjs
+          node scripts/squad-watch/test-review.cjs
+          node scripts/squad-watch/test-apm.cjs
       - name: Verify approved Linux installation without model invocation
         env:
           GITHUB_TOKEN: ${{ github.token }}
