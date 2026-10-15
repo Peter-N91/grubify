@@ -1,0 +1,36 @@
+name: Squad APM Linux integrity (no AI)
+
+on:
+  pull_request:
+    paths:
+      - apm.yml
+      - apm.lock.yaml
+      - .github/squad-watch.json
+      - .github/workflows/squad-apm-check.yml
+      - scripts/squad-watch/**
+  push:
+    branches: [main]
+    paths:
+      - apm.yml
+      - apm.lock.yaml
+      - .github/squad-watch.json
+      - .github/workflows/squad-apm-check.yml
+      - scripts/squad-watch/**
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-linux-install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Offline portability contracts
+        run: node scripts/squad-watch/test-apm.cjs
+      - name: Verify approved Linux installation without model invocation
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/squad-watch/install-tools.sh
