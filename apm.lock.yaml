@@ -3399,7 +3399,7 @@ dependencies:
     .agents/skills/accessibility/tests/test_scan.py: sha256:c65d18b016622eb4dc3f065ea4e2b5e61b6fcdad1124fb22a1153f4b10bde57b
     .agents/skills/accessibility/tests/test_scan_branches.py: sha256:71ed3b447974efcc0ebca3eb5c2a94a3dd9c2f8afdcebeba45a08368c4f4626e
     .agents/skills/accessibility/uv.lock: sha256:f0265e2d836fb9765be0a6f15e4c21fefc72a46651e97490dea27535172b6377
-  content_hash: sha256:6bb30ce18061b33dc46c073345994e6befb5120350998f2f0bc86e1c6bd9bb3f
+  content_hash: sha256:b0891b8de30594fb6cf404e1cad85c458636e7b88c167d7eecfbcc84737c5730
 - repo_url: microsoft/hve-core
   name: code-review
   host: github.com
@@ -3438,7 +3438,7 @@ dependencies:
     .agents/skills/code-review/references/review-targets.md: sha256:aa32c188f0dac2da7224b600be3b3e190d5e3e5f1be8101b178c464c890ff13e
     .agents/skills/code-review/references/severity-taxonomy.md: sha256:af631a20b17375382f5e85aea5f04d8359de8f206405c5e083e639850b062ea5
     .agents/skills/code-review/references/walkthrough-protocol.md: sha256:ff24e59cf256b613360e62215f0cfab7f408409ab806fb59fc869cdab6d595ba
-  content_hash: sha256:cff8cf3fae341bbbec93b82c0bf6a25df3a4aa49e9d3fc8663d38dc16216d044
+  content_hash: sha256:0dabad93bc2c1150ce1bcd3caeded6be06f1cfc03c255b07de377289acd3e5b7
 - repo_url: microsoft/hve-core
   name: hve-artifact-authoring
   host: github.com
@@ -3465,7 +3465,7 @@ dependencies:
     .agents/skills/hve-artifact-authoring/assets/prompt-template.md: sha256:fde1465a8d33cbc963dc74c7b589f2dca1bc465981a230174dd382277931c120
     .agents/skills/hve-artifact-authoring/assets/skill-template.md: sha256:1dc286d6cdede838d11409e2e52b51fbc4913a7e825c23cfd741baac64b65dd7
     .agents/skills/hve-artifact-authoring/references/frontmatter-schemas.md: sha256:242d7ad37f3d407a5e6cbaf1553393abc7c2bd96df4dbc87a4142c54f625b161
-  content_hash: sha256:97f86ab3eac70cd30f13733f97ee1ace64b2f115f030e87adf24f9093e11b847
+  content_hash: sha256:feb0eaba49348b45728ca89e4953e6e1bff8493151cbd0e7e61c7d029ff5c5d4
 - repo_url: microsoft/hve-core
   name: python-foundational
   host: github.com
@@ -3486,7 +3486,7 @@ dependencies:
     .agents/skills/python-foundational/SKILL.md: sha256:eab08a2ecc395582342302378a7882cb6be89dbb19d85bcf6a957cf42b350870
     .agents/skills/python-foundational/references/code-style-patterns.md: sha256:e2c931b58dbfb1a982e89238c5803215bc57b9a082d39236b79312d8ad23ad35
     .agents/skills/python-foundational/references/design-principles.md: sha256:d76de8e1d28fe1f2bba932de2ed6ee41aa283c4b297bcd28cbbcfabd2c25a1bf
-  content_hash: sha256:ce98971ef5c8c6e35c121490753e30a40e08bb1e9b579ad4e34b22a31d7445e6
+  content_hash: sha256:53c232b1c11fe754f36dcb6ca99a9b008b01edf2b6c34a43c0918a8febb857fd
 - repo_url: microsoft/hve-core
   name: analysis-authoring
   host: github.com
@@ -3507,7 +3507,7 @@ dependencies:
     .agents/skills/analysis-authoring/SKILL.md: sha256:fde091d1f7591ab905b6d5601854cbbbe6bb3df418730542d703a27ef3d8c4c2
     .agents/skills/analysis-authoring/references/dashboard-authoring-and-validation.md: sha256:e307a7e1858890787c9012eb6d4e681c1551c35c7f4b907b7ca2fea82d3fcaee
     .agents/skills/analysis-authoring/references/eda-notebook-authoring.md: sha256:64e1b8df8ea1b175496dccd8648bae9dfdaa5ab08a3fd5f5b881079b3daf249f
-  content_hash: sha256:775e51028aa5c124f9f1f21f1eb814dce03d71058bbf31f1b3c988b96e951224
+  content_hash: sha256:e40764e1969491200b9c22d1b9283d903bc1178a1e1348654c3098752ec40563
 - repo_url: microsoft/hve-core
   name: data-catalog
   host: github.com
@@ -3558,7 +3558,7 @@ dependencies:
     .agents/skills/data-catalog/tests/fuzz_harness.py: sha256:d1a61d791a0aa14c4fc2a5e24d23010bcb59cd94bee1c7d280cb79ac7155812e
     .agents/skills/data-catalog/tests/test_validate_catalog.py: sha256:8616e8c76bbad24b6fe245afb8443415cdd657ba8e74f7a5144323311991f517
     .agents/skills/data-catalog/uv.lock: sha256:522aeb5a43e00653c32f7b8a6afea1be3e4c15f4575e27511bc7c6cbe32b29ac
-  content_hash: sha256:bdae7169b86e7c4c105f7eed419978b9c065c2313c86a84be6852bcd4b3cf0f3
+  content_hash: sha256:957af28afdd656c3b6cac421bde1926445a706c19b6c7936e2d6dbc5f0a38159
 - repo_url: microsoft/hve-core
   name: data-science-engineering-foundation
   host: github.com
@@ -3585,7 +3585,7 @@ dependencies:
     .agents/skills/data-science-engineering-foundation/references/lifecycle-classes.md: sha256:fe255eef29b41787ba7e17b584bc0fe21bda1208936d068177a5cafaf7ae3291
     .agents/skills/data-science-engineering-foundation/references/session-state.md: sha256:79a2d40cd898f8b4fa320a35a61f1e43acec4788afed8a0043b3748b02ed326f
     .agents/skills/data-science-engineering-foundation/references/transition-protocol.md: sha256:35b668443fb8ae387ddbd2d80b555c7c98cd440c6e33c476ed171b16c8bc3283
-  content_hash: sha256:0e81bb1e4092e8f170f1493149fec498bc1961a71535cfd223f2f88d882ffa9b
+  content_hash: sha256:9519c9653f29143383ebfa375119bd9a4f874fffa19b3b13294169dfc2c715e1
 - repo_url: microsoft/hve-core
   name: dataops
   host: github.com
@@ -3632,7 +3632,7 @@ dependencies:
     .agents/skills/dataops/tests/fuzz_harness.py: sha256:c607a3a9bc8825e0aec192dfa2374362335393b7981703ad3c23614b4707e5e0
     .agents/skills/dataops/tests/test_synthetic_data_operation.py: sha256:4f8eeb583c70cd200b335c366a07605940f82d6d3f9570a42a6a98cf763f1042
     .agents/skills/dataops/uv.lock: sha256:be8ad2f20a2f8c3ba709e012e9db218700644fa3a8a39556d56b1ec0546b14c4
-  content_hash: sha256:a05f4627fc4be54cbf8ba5a59c7b76c6a765d2464487ea8589620ec8d63c6b1f
+  content_hash: sha256:ee7eeaaeeafd8a50bedcd6e04602401e1c007829d4ebaac3d5a18288e74d2a32
 - repo_url: microsoft/hve-core
   name: evaluation-design
   host: github.com
@@ -3685,7 +3685,7 @@ dependencies:
     .agents/skills/evaluation-design/tests/fuzz_harness.py: sha256:e43ee9ab68f371bc320847a5593957c92015475f527065571a6c95683fbb27b3
     .agents/skills/evaluation-design/tests/test_validate_evaluation_dataset.py: sha256:732592b4c346bbc35c18073103a9590e1397dc107452789459693fbfde5c24ba
     .agents/skills/evaluation-design/uv.lock: sha256:95e5644ca3d80d4239e7dcebbf4867954f7e0caf5dd4900a1d6480e3f148c396
-  content_hash: sha256:8a25b22ccddc61e499b0a75ed9fa4cebea51e4dd6e2a7a54a4485ef3455c33e8
+  content_hash: sha256:40950d110d07904f364794551c9f5322c65eaff821e328f8f12a6d43f0ff3ea4
 - repo_url: microsoft/hve-core
   name: feasibility
   host: github.com
@@ -3742,7 +3742,7 @@ dependencies:
     .agents/skills/feasibility/tests/fuzz_harness.py: sha256:60751ed7f8e186828a246c139c7e04662517ad522866431896e08cb16f976ea3
     .agents/skills/feasibility/tests/test_validate_feasibility.py: sha256:e2a91c0d2d00b46d2b1431037b3775f979edd9388538a1e017441a14e4c03847
     .agents/skills/feasibility/uv.lock: sha256:d41cc136b9683b4f7a084a24db4d42d2c9f2a07added5a34acefeb72119b4325
-  content_hash: sha256:c27c372a10e9b312a33b2d392f79576b0adc81efe9b04f97ebdf270a8a578a63
+  content_hash: sha256:18905b21cd171b3f4662278da88ccd7bbc5b22234a257f6ba526a70bf1d4218f
 - repo_url: microsoft/hve-core
   name: ml-experimentation
   host: github.com
@@ -3765,7 +3765,7 @@ dependencies:
     .agents/skills/ml-experimentation/references/ml-checklists.md: sha256:0d0dfd84c192707f162fb713b15a1fd5e8453032a17d68754a813760c3a33a61
     .agents/skills/ml-experimentation/references/model-experimentation.md: sha256:276d494c31aa07222652370b83c574851dd1233b2a5f0793c1210b0bf4e039ed
     .agents/skills/ml-experimentation/references/provenance.md: sha256:01a9319b5124392dc6a2caa95de807a8793bb77c282e9257ab9ab21c590a8882
-  content_hash: sha256:1d4059f69804b1bcf8a08634a1476e2f57ccfcdf53193dba3b7a42cdb41a3edc
+  content_hash: sha256:12e68118e444f194d4025d83265a3e36a83938c85298d957c2cf4b6a7d7094f6
 - repo_url: microsoft/hve-core
   name: demo-setup
   host: github.com
@@ -3784,7 +3784,7 @@ dependencies:
   deployed_file_hashes:
     .agents/skills/demo-setup/SKILL.md: sha256:a5cca78bc7105bd15758e083d90b3c29a0308336e01a42d7013b4f48890634c0
     .agents/skills/demo-setup/references/demo-video-script-template.md: sha256:b8242a6e0302cc53e553450b96ee8fece58e8e21591b3e0694913497845377d1
-  content_hash: sha256:0fdf950a273306ec68b3a748422f3782bf9729f76a14f8ed16389d0a2d7a6538
+  content_hash: sha256:a5796397ee1c3c8a6271e379c3cfb7809fb605b70f49f4cd863969ef5f7ced0a
 - repo_url: microsoft/hve-core
   name: dt-coaching-foundation
   host: github.com
@@ -3811,7 +3811,7 @@ dependencies:
     .agents/skills/dt-coaching-foundation/references/coaching-state.md: sha256:93316a0f61911ca1d11e83e8a4b2cbfafab6b9fbdd88ca11c72c9b31ef1921a5
     .agents/skills/dt-coaching-foundation/references/method-sequencing.md: sha256:81ab9849ddc57e1bbe7cdaa36e69f17988bd4ad59d16510dd776f414328ed0eb
     .agents/skills/dt-coaching-foundation/references/quality-constraints.md: sha256:6450a1a5d39850e88ca8f50c4ed465ca38d0b3fafa5b4f73e5322ad9e5095eb6
-  content_hash: sha256:d519a3e018c89b14f9e37edf25074466426bf9b2691813f9d69b2f122be91854
+  content_hash: sha256:b64447f839f1d3e28d5c259c6baa6061b2bd484bb8a8335f3f6384efae476b2a
 - repo_url: microsoft/hve-core
   name: dt-curriculum
   host: github.com
@@ -3848,7 +3848,7 @@ dependencies:
     .agents/skills/dt-curriculum/references/curriculum-08-iteration.md: sha256:5678dbd6019bab37dafd159842d3f06f5cb8f98aff1a2f79c42b520bf0310f95
     .agents/skills/dt-curriculum/references/curriculum-09-handoff.md: sha256:4011354e03dfb241d0d88640a2f1944606a1f06313504c5b627251bf48ac1056
     .agents/skills/dt-curriculum/references/curriculum-scenario-manufacturing.md: sha256:7c01906052f506f0e5d3b4ded4500cd8d1ad2b397ee1be8eb86fcadc62c5f347
-  content_hash: sha256:3a4fa0d66b4f0d50f3cb8c7314f994980e47a5fb1b412f44899488a06c67b03e
+  content_hash: sha256:b40bbc08a4232f9d55ee83bb915974bc38dc0c93043f560eaa33ad25b5fb592e
 - repo_url: microsoft/hve-core
   name: dt-methods
   host: github.com
@@ -3921,7 +3921,7 @@ dependencies:
     .agents/skills/dt-methods/references/method-08-testing.md: sha256:9338e4921ea5b6605b6309d2d403205a00a022629b9b5b81f4cdd04bc494107b
     .agents/skills/dt-methods/references/method-09-deep.md: sha256:5f68156344b99151308f9f71711ba70ac2083988f6a46b6bcf7e249d4e7fc5aa
     .agents/skills/dt-methods/references/method-09-iteration.md: sha256:3a9992c80de61d7958efb3031302770f62c0162cc3eaf6dae92614204974aa5b
-  content_hash: sha256:26c11a0c0b7fc0bc928219b4f3f6a125cce245cdf3927f5da1eb6064db01c5b8
+  content_hash: sha256:2d3f36b20d2da946df7d792ae077adc58b8880e0270192764377ec607301367a
 - repo_url: microsoft/hve-core
   name: dt-rpi-integration
   host: github.com
@@ -3952,7 +3952,7 @@ dependencies:
     .agents/skills/dt-rpi-integration/references/rpi-research-context.md: sha256:43cd5fb9fdddd6c1fb6918c3b8896c72777540148af2886cdfe278c4fcfbdf5b
     .agents/skills/dt-rpi-integration/references/rpi-review-context.md: sha256:751009f182492fed44e54255e7543fb1aa01a6948bd458e87eabe4b1552a611c
     .agents/skills/dt-rpi-integration/references/subagent-handoff.md: sha256:c0199b991bbadeb2d49e7e52cfcccc5b93282d19f08a7455f2e51d0da22145c6
-  content_hash: sha256:47a9450aed210624512e272a56a9ea6da1656777f5a480d83e320d6764c675c4
+  content_hash: sha256:397da624ab69f556b1af5edc2f30d9102a8a9550aae2b1a33e6887e793403d56
 - repo_url: microsoft/hve-core
   name: ux-artifacts
   host: github.com
@@ -3985,7 +3985,7 @@ dependencies:
     .agents/skills/ux-artifacts/references/sketch-structure.md: sha256:0782f3648f6ba86bedc7f63d748fe074e5acf57435dd15eae46e7da3c1d5b987
     .agents/skills/ux-artifacts/references/to-figma.md: sha256:8074ef24648b981ef4af4b358ea50ae05b1655d0e5af97d7c8aa1677fa8fc9bf
     .agents/skills/ux-artifacts/references/to-mural.md: sha256:3462bf83fd5ec35f20baa17330048859a0316b42f045163dba3e220bb51c2abb
-  content_hash: sha256:8651804b49dcde82a5ed98097249441b19bf2ac9ab211fd2ae66ed3d19e180bd
+  content_hash: sha256:b586cdee5de1e01c2e8c7763a2e0450111d4d2cc7f1ad483c2d5413858e8fc4d
 - repo_url: microsoft/hve-core
   name: ux-coaching
   host: github.com
@@ -4012,7 +4012,7 @@ dependencies:
     .agents/skills/ux-coaching/references/critique.md: sha256:55a82231b4e97f06d029f2b425666ca2581e42a71fbbe440f8eb32b42eb5a2c2
     .agents/skills/ux-coaching/references/problem-framing.md: sha256:6690ea7fde92b551c5f768a8570282c30cc6d70713d1d8b1933cd786686b8cf0
     .agents/skills/ux-coaching/references/stakeholder-advocacy.md: sha256:a6a4e297d7021350ccaf7d2a7fcee876e4e02d00c63fad26694134715eba1ef8
-  content_hash: sha256:68dbf46087844e8806eaa4846ac3868953627474bc28d2d6e0dd61f678aab4a9
+  content_hash: sha256:3d0d962919704b71cfc38163de52b3f5164d382963c761ac3ff01c505e761df1
 - repo_url: microsoft/hve-core
   name: engagement-reporting
   host: github.com
@@ -4039,7 +4039,7 @@ dependencies:
     .agents/skills/engagement-reporting/references/distribution.md: sha256:54077b6d0e529be4e342a10608ba39c2a972d4edd4c2c86b3dd614f8b77f6b25
     .agents/skills/engagement-reporting/references/report-contract.md: sha256:9cbad8522d39f7d09ad21856f2c3cc87803b4c4e1dbf0d83bf163e564be271e3
     .agents/skills/engagement-reporting/references/research.md: sha256:f230604fbf0f7bf8a34658d0be375e8f1532ab075e7b792a12d3935b65af8938
-  content_hash: sha256:4e86c6f7a8747b85d2b71179b04e57793ad38a39dab0a41b803497d8e3881eaf
+  content_hash: sha256:8d99534d384aa63a521661eff151672d5cdb303232ba00dd2181031368b6d6da
 - repo_url: microsoft/hve-core
   name: caveman
   host: github.com
@@ -4056,7 +4056,7 @@ dependencies:
   - .agents/skills/caveman/SKILL.md
   deployed_file_hashes:
     .agents/skills/caveman/SKILL.md: sha256:5f1026bb171b3b557969a0293b5f0b09af1bad6f4db7a7c4123e2eed47660cf2
-  content_hash: sha256:be11d3c6d70ab1a95c72f9bc9b0c51778dc8e057dc73a4fa1ca7aa81e0f3d239
+  content_hash: sha256:6174c85b0e5d40d4c0c97b5e8b7802959fe2785bfb7e91157dc425b0d9924a4f
 - repo_url: microsoft/hve-core
   name: copilot-otel-metrics
   host: github.com
@@ -4157,7 +4157,7 @@ dependencies:
     .agents/skills/copilot-otel-metrics/tests/test_local_config.py: sha256:646942b6518a91dc78c65fa31e1a185b7821d7ed40cdeaac7404150745895f1f
     .agents/skills/copilot-otel-metrics/tests/test_settings_upsert.py: sha256:3b0d3f6fc3612c27e58ff623b7fa06e9afbf55517918623aad39d94cd5fe7a24
     .agents/skills/copilot-otel-metrics/uv.lock: sha256:7fb229d6c6a0a09674934772d6207bd44358d06436ce76d0cbea4ef36166ccbd
-  content_hash: sha256:781b28a239907db435be90335592bebbd529f44daf0f28a1fb19b90936467132
+  content_hash: sha256:f5ee715dba0a3e09b1c7740837668b34208291d343846f5cddffbd807ca1119b
 - repo_url: microsoft/hve-core
   name: customer-card-render
   host: github.com
@@ -4208,7 +4208,7 @@ dependencies:
     .agents/skills/customer-card-render/tests/fuzz_harness.py: sha256:36d116d21861c7297562d0b8cd324f946fcfab8b32e4791cbb74ed591200ca6d
     .agents/skills/customer-card-render/tests/test_generate_cards.py: sha256:1dad9eedc1a5d1887687251cf6fbbf1a8822b182002599fa79b88b8defef0d88
     .agents/skills/customer-card-render/uv.lock: sha256:54138a163880b6439086741f7973331345f1063b8ce6b20a785e33f8228f6157
-  content_hash: sha256:82f1bffab6d51ea04a4417f6b0f965d405a06367eff44001823d3d182cde7154
+  content_hash: sha256:ccdf8c215221005e1a56c95c2a644ecb255779abc74d29a20838be2800136914
 - repo_url: microsoft/hve-core
   name: demo-video
   host: github.com
@@ -4253,7 +4253,7 @@ dependencies:
     .agents/skills/demo-video/tests/test_assemble_video.py: sha256:f28d2e73bf52ab8b505b8a3cb8a2240af15e35f8d0904772ab638e56f4577027
     .agents/skills/demo-video/tests/test_assemble_video_integrity.py: sha256:3df4f66e2368eb52ab85861b66dd385d1b2b482d7d49d021f89330e3f24002d3
     .agents/skills/demo-video/uv.lock: sha256:e69cd8ee26c6307d7931c068614e0f851eeb1e53daea01f7186f41f8971cc83e
-  content_hash: sha256:96d6d2f7b3de0fabb15cd873948a1dfcb6d84056f86929b71a1cc855171313e8
+  content_hash: sha256:b893af10e3d260020b87b853674a9a7548e258ba9dea42771f099775c20fe1da
 - repo_url: microsoft/hve-core
   name: hve-demo-material
   host: github.com
@@ -4310,7 +4310,7 @@ dependencies:
     .agents/skills/hve-demo-material/tests/test_html_deck.py: sha256:eda26716037a851369674b4263d45cac4bffc9c6b748ad3450a1923349fd9c55
     .agents/skills/hve-demo-material/tests/test_render_checks.py: sha256:a4c7766c871f84fdf0eed7b0d18654107b5fee5dcf32ad45c9ed9fb806c98b95
     .agents/skills/hve-demo-material/uv.lock: sha256:419cd7a65a3fdefc3453aa0998993138074d12edbf7bb76616c80ff9bddd56a0
-  content_hash: sha256:6a0263d04bcc46bec6d17dd2bb9bf8bb61bf65c58a62dc020f14f83b5f51a2fe
+  content_hash: sha256:bf29e596ab3bf70a9090675ab6914f0aff7eb664581debf9361b23d2d376a479
 - repo_url: microsoft/hve-core
   name: mural
   host: github.com
@@ -4687,7 +4687,7 @@ dependencies:
     .agents/skills/mural/tests/test_validate_client_secret.py: sha256:a07ed9ed161351f96ea8600b5e78c40b4d2a77cdecc518678b9cad403d87e4b9
     .agents/skills/mural/tests/test_widget_create_bulk_dispatch.py: sha256:3069abe230a36965dce4a573efb6080eaf445be6247198a2ed0fd24f04d6b07b
     .agents/skills/mural/uv.lock: sha256:b6bb013e54557be5c76642a26f0df35d9806abc2dd82af7b5d47fc38bdf612eb
-  content_hash: sha256:39751f060904e206d3ce44dad7a979d3bd565f3314b83af49453eb2cafa8cb47
+  content_hash: sha256:581b29f80423898e107fd5108ebdd4ccbdf7e187e7f99343bcffb3ec5979600c
 - repo_url: microsoft/hve-core
   name: powerpoint
   host: github.com
@@ -4872,7 +4872,7 @@ dependencies:
     .agents/skills/powerpoint/tests/test_validate_geometry.py: sha256:8f411d43a9479847ba57e5695378c5a9a26ad024a6e3312ba199e1df027091a5
     .agents/skills/powerpoint/tests/test_validate_slides.py: sha256:e053a823fe9db769255e7ef2bcffbb8af8d50eebd6e906647c5e09bb82f2fdc4
     .agents/skills/powerpoint/uv.lock: sha256:fdd767b06f84651ef4775c996923c1a85dec3b610d358e6335fd167913f618d6
-  content_hash: sha256:c240027d53eef2c5f0cb1b195d5b0ccc6a617b3cbae2e16974cae650fc2a7f2a
+  content_hash: sha256:1e4f130839e50b12289e78f77d20b94873cf1bc95b502b60fb87d0aa766c1282
 - repo_url: microsoft/hve-core
   name: tts-voiceover
   host: github.com
@@ -4935,7 +4935,7 @@ dependencies:
     .agents/skills/tts-voiceover/tests/test_generate_voiceover.py: sha256:cbebb1dc0f6f43ab2ba8b1c359475f3679a4110ca3b73f8dad7b4584761eba6b
     .agents/skills/tts-voiceover/tests/test_generate_voiceover_boundaries.py: sha256:102a66480c87bb803922d1dcfbb4e9bf28f3e17b3f08634b13d21d814cd9f299
     .agents/skills/tts-voiceover/uv.lock: sha256:24cdf2d8f9aa2ea202dad853e208790265320dfd204ef0038104fdd24824fa47
-  content_hash: sha256:f0fefd4de4c7835c093b2a3b1effe1f7cf299efad72849ae3a61b9db7551caaf
+  content_hash: sha256:bf85d7dd3ff7eadc23849ad69b724aa94a311997d0566b506c30d8263087f421
 - repo_url: microsoft/hve-core
   name: video-to-gif
   host: github.com
@@ -4966,7 +4966,7 @@ dependencies:
     .agents/skills/video-to-gif/tests/convert.Integrity.Tests.ps1: sha256:affce50d58b52c517eac6906143ede1ed80a4fdfa1a1ca4db8f8372d853c4a34
     .agents/skills/video-to-gif/tests/convert.Tests.ps1: sha256:390f69a91d3df1895d058790f071eec3d33bb87ef86c055e89aac160093ab1ed
     .agents/skills/video-to-gif/tests/convert.sh.Tests.ps1: sha256:9913ea55ecf9c921c78cdff18d239de9f4ece8e61f0ff9469a9736c8c2ad58f0
-  content_hash: sha256:d42bc69978d8e99331ef3ccc9ede0cb59d60a6d40d56c7504875aa1472660d84
+  content_hash: sha256:cf39529bcdee6121d49621bd89e892512340ac6bb71e5cc5ba663ba1fd1e253b
 - repo_url: microsoft/hve-core
   name: vscode-playwright
   host: github.com
@@ -4999,7 +4999,7 @@ dependencies:
     .agents/skills/vscode-playwright/tests/fuzz_harness.py: sha256:a486e85353cbd495f5cbd0a3ca7c3bac7623a7ea619de5fdb1202878ef1d913c
     .agents/skills/vscode-playwright/tests/test_capture_vscode.py: sha256:be286378e8022678c1bc3af669f793390a331d22f4a8b7f20994e4df28e311e8
     .agents/skills/vscode-playwright/uv.lock: sha256:9e52d18d18af41515c910412ec9d7f6014bc5a7654eb429db50e51d84859c10d
-  content_hash: sha256:e1b16e8a76b2705c380330b3b5280b068e181405f1ab014c5a3235b366309917
+  content_hash: sha256:9465838a349a99952aeecc6e49d5b50aaf32b64057b12688f247505fd791c669
 - repo_url: microsoft/hve-core
   name: architecture-diagrams
   host: github.com
@@ -5040,7 +5040,7 @@ dependencies:
     .agents/skills/architecture-diagrams/tests/fuzz_harness.py: sha256:f1de31e1e667d136aaca5b1d74469fe6ad830e5317ad693b27dcefb4552af947
     .agents/skills/architecture-diagrams/tests/test_render_catalog_erd.py: sha256:3b27e011f0654d4b98923f926e872ac502e884a85f93e80a7616a5dad1212a39
     .agents/skills/architecture-diagrams/uv.lock: sha256:07a276838b863f14757632de1f5eefb319336b9a8d63dd57bbb5ce7d79d60e0e
-  content_hash: sha256:4095d5dec5ed81eb61a1f911799f6bc4810d4e71a41646f4002530c01dd4d42f
+  content_hash: sha256:57a86f3f8a0b06449a147b0512a6ca7750f6a18dde7476dc4c69611a2ad80352
 - repo_url: microsoft/hve-core
   name: c4-architecture
   host: github.com
@@ -5061,7 +5061,7 @@ dependencies:
     .agents/skills/c4-architecture/SKILL.md: sha256:b100a480b72393dbb4a8a3a90feae94f3cc59637e4a7d848b980df6e769784da
     .agents/skills/c4-architecture/references/c4-modelling-instructions.md: sha256:dd8e754395529b6946f9d4950c084d5d9a115570c4492e096db09c3296b2e71d
     .agents/skills/c4-architecture/references/renderer-mermaid.md: sha256:0b81bb289c5471d684873571fd752d45792bfca91b0a0a72871530fcf7665981
-  content_hash: sha256:9c8f02341cbe6b652c5afcfe40cc80531eefd1c5e867a760ed7ca30b4337d73a
+  content_hash: sha256:37976ab835bfe21e4683b27ee30978ad6d36f5864ee9fa8b447d7e27dac29a95
 - repo_url: microsoft/hve-core
   name: documentation
   host: github.com
@@ -5096,7 +5096,7 @@ dependencies:
     .agents/skills/documentation/references/validation-toolchain.md: sha256:a508798e3d81dcf2bc30bedc539050247148ff11276be1e675769717cc664ecc
     .agents/skills/documentation/templates/guide.md: sha256:77c85b8ba63319a41673d09129d7c8854fc3194e2a3de1fc644df905e8949bf8
     .agents/skills/documentation/templates/reference.md: sha256:e0a4e484727ba0de860f286e914a6d63b78ee12a3ffca37ada889a9dc27c498e
-  content_hash: sha256:d01808593f8965328037d138110543f51f289f49c6c01f9a48887f92dbc20263
+  content_hash: sha256:978656f76c67569ef1c10d6936d1e4cdcdabec654ba4c927f5ace29353536455
 - repo_url: microsoft/hve-core
   name: hve-builder
   host: github.com
@@ -5125,7 +5125,7 @@ dependencies:
     .agents/skills/hve-builder/references/review-rubric.md: sha256:3f64077d5d33ccbdfac3f765293d56f950d70d76206d1d0d9fed4fac09a7ebfc
     .agents/skills/hve-builder/references/stage-dispatch.md: sha256:19fe232e4d1de999d8778b19016cd5089b3da24ef5f3214e355e8dafc655a346
     .agents/skills/hve-builder/references/workflow-contract.md: sha256:02e7e5c8b2e5227592e628fd04a8c6d209b06128d47b5f3ac5186f7c222c2c1e
-  content_hash: sha256:b069543ecf2fabadda32aa161e2577d5771e39e7d08541a44f909fa406cc92c4
+  content_hash: sha256:940184c73d5a6f9a52b7c13c6cf15c2ee6ef798f8df3fc6358701288125db5c0
 - repo_url: microsoft/hve-core
   name: prompt-analyze
   host: github.com
@@ -5142,7 +5142,7 @@ dependencies:
   - .agents/skills/prompt-analyze/SKILL.md
   deployed_file_hashes:
     .agents/skills/prompt-analyze/SKILL.md: sha256:24ef7a7b0266dcc29a17025a3d7ec40b46b13d8f698f1884771124c0312dbaa6
-  content_hash: sha256:2618da59635c0e1aa96eaae122893848f976158ff6203688ae2ab64b454831b6
+  content_hash: sha256:4b70e7eceaeb532e7f55a1faa4cd38d8acb4858c52132769bd4ea162343676e3
 - repo_url: microsoft/hve-core
   name: prompt-builder
   host: github.com
@@ -5159,7 +5159,7 @@ dependencies:
   - .agents/skills/prompt-builder/SKILL.md
   deployed_file_hashes:
     .agents/skills/prompt-builder/SKILL.md: sha256:c58b8c493a09863a5e73758610a7e05be76173fc1eb5b810e71e5c1a47719a67
-  content_hash: sha256:18da5b699da2fbc91d0e1c3842e8e6873258c33f0377c1d8028bd221b3e238d6
+  content_hash: sha256:e3b6393a6fc2f2cec946b5a9e0acd5f84cfd859da2f440cc489c0bcbf2a13e10
 - repo_url: microsoft/hve-core
   name: prompt-refactor
   host: github.com
@@ -5176,7 +5176,7 @@ dependencies:
   - .agents/skills/prompt-refactor/SKILL.md
   deployed_file_hashes:
     .agents/skills/prompt-refactor/SKILL.md: sha256:1762801a98efe899c53cd2aa70c0469c98e2eebcdba2e4a13190442b4d58fa8a
-  content_hash: sha256:eec1dd3e5497967c245e761bc5d39dd7fff7d07c9943ea48a44307007781ddeb
+  content_hash: sha256:779e4c2165f1fb1f0d409695d1dcc5cd3ebb372f907949dfb5d3fa2facba717a
 - repo_url: microsoft/hve-core
   name: pull-request
   host: github.com
@@ -5199,7 +5199,7 @@ dependencies:
     .agents/skills/pull-request/scripts/Collect-Context.ps1: sha256:649ef89b37614b96cb9b3bcbd67909fee21448187984961f892c227933fa9209
     .agents/skills/pull-request/scripts/collect-context.sh: sha256:5b4b12045ed0d99d4c4372f0de3de300d90dc2706ab256b86445cf3f8d2017d4
     .agents/skills/pull-request/templates/pull-request.md: sha256:03f7778a883e0e844bf6fe726c1da131be6677618920971782dc0fad5b68a68c
-  content_hash: sha256:1121a2cd1d707de4bcf4f839b96307eb223a3f500272219543778668a0248c09
+  content_hash: sha256:24aed8a04f156fc72a5cb0759bdbe9b1bb98a84561cdd549e93328c3bf1ea9db
 - repo_url: microsoft/hve-core
   name: vally-tests
   host: github.com
@@ -5286,7 +5286,7 @@ dependencies:
     .agents/skills/vally-tests/tests/test_import_corpus.py: sha256:0e9d41fcd47139bfd58632a7628e0f57fc6edeed7233478eebbbd350d88a6078
     .agents/skills/vally-tests/tests/test_lint_safety.py: sha256:10cf555011ec8f0704f796f1bb2a89f3ed605ba66cf40ad152ed3e4e282911eb
     .agents/skills/vally-tests/uv.lock: sha256:182d09902b1966f4bbefe7bd84488ca2f61245bb6497f024fb62f489267b3f6e
-  content_hash: sha256:1ffd1ed0f8000f3bf7f4b8ea0bdd41fbc8dc6fe26b6ccff0c27ebc18eaa7d532
+  content_hash: sha256:c6f0d6569e81e4cd9785f0c87998eceb2d7b628c5d55efc79e319f28e5fb1c59
 - repo_url: microsoft/hve-core
   name: hve-slides
   host: github.com
@@ -5369,7 +5369,7 @@ dependencies:
     .agents/skills/hve-slides/templates/fragments/workflow.html: sha256:b21879d71e28ab8912950c06043e73dc07c1aaa6ac0f3491308f24fcc50013b6
     .agents/skills/hve-slides/tests/build-decks.test.mjs: sha256:64170312e13b1783f5d29f7ae346e022f2c5917a1af7492561286dc1be0ed227
     .agents/skills/hve-slides/tests/create-deck.test.mjs: sha256:3cdc11d5379e135e15070bc389281ae455d453c4b002a1301db7a9e203060f9e
-  content_hash: sha256:ad8459f29824b177878c0a89cb220b3ba29a515659905f56ab2d2b6c33ff7d8b
+  content_hash: sha256:dfdc7d92753cc319ee8f80f1bc25b2fd7633c040c569b062b6b3a641bcd8e2e6
 - repo_url: microsoft/hve-core
   name: hve-core-installer
   host: github.com
@@ -5444,7 +5444,7 @@ dependencies:
     .agents/skills/hve-core-installer/tests/upgrade-detection.Tests.ps1: sha256:94d6b3373cb2de99184e00fc67d96c9cc551ff7e764195b68f01e71919e0c85d
     .agents/skills/hve-core-installer/tests/validate-extension.Tests.ps1: sha256:66e8deeb034deb0be8f52c0acad0ec88aaf56f2de34f66c44ee597c4c81f1be3
     .agents/skills/hve-core-installer/tests/validate-installation.Tests.ps1: sha256:794aa57d30b11a7e827b33e7df14712c9028cff274af3ca6902c79b21d8edc17
-  content_hash: sha256:658ac1bd9d4af8b154f15fbc060e516832612800714865ddd5e1437d8670518b
+  content_hash: sha256:4c61f41c95a01a724feb816f8cde658166d467fa9aab6920758a6809751cc73b
 - repo_url: microsoft/hve-core
   name: adr-author
   host: github.com
@@ -5525,7 +5525,7 @@ dependencies:
     .agents/skills/adr-author/tests/test_utils.py: sha256:7d0e0920c106cdfda8b738128884314d72e499255d362c8160e1d368f523a449
     .agents/skills/adr-author/tests/test_validate_frontmatter.py: sha256:b3d4eb0f0f1477f6d889d5420863425071d61c8b3140eea89c886c3c628fafc6
     .agents/skills/adr-author/uv.lock: sha256:a543532dff7d58fa40257607963655ade6d0f4d7868300452f6158d155862dfc
-  content_hash: sha256:bd84e1a0bfd0d2521c2965903297fae3fb03a6082521247cf1aa94322ab4328a
+  content_hash: sha256:4fa1c283930acd8104da264f60347f7e6601747ac74a69af69ae014636b1d496
 - repo_url: microsoft/hve-core
   name: architecture-review
   host: github.com
@@ -5544,7 +5544,7 @@ dependencies:
   deployed_file_hashes:
     .agents/skills/architecture-review/SKILL.md: sha256:896a84b38a4c02e6b57c47afacb0ead8025cb1d4955386260815bbc8f4dc5334
     .agents/skills/architecture-review/templates/architecture-review-record.md: sha256:fbdf5206a61ed190c852c8da7975c8b75ceb0e3803035befe91c7fa46a1e5c2f
-  content_hash: sha256:158ca94a6a5e91f3b013b5a1572d0b940a7a85063b388be4da60f5167ad1d3cc
+  content_hash: sha256:529da1463442daa92c9e4396c2519e31a3958afbf47679f6d8552c035ae16b3b
 - repo_url: microsoft/hve-core
   name: backlog-execute
   host: github.com
@@ -5561,7 +5561,7 @@ dependencies:
   - .agents/skills/backlog-execute/SKILL.md
   deployed_file_hashes:
     .agents/skills/backlog-execute/SKILL.md: sha256:b0a7685540fb1405ead4120430c72ea78052c15e2851c10da6e989129a7329c3
-  content_hash: sha256:17021ebce08fc11f08615d726048fc421bdb20ee9b45dcecc611a0f4ad24d6b0
+  content_hash: sha256:5a57fb102e0f768a8e6f159d51b1fc0ed5ae924758e87e23c9dc4fe4899c8edc
 - repo_url: microsoft/hve-core
   name: backlog-management
   host: github.com
@@ -5596,7 +5596,7 @@ dependencies:
     .agents/skills/backlog-management/references/story-quality.md: sha256:02f5930e747ca365416e6131260a39e55f978e586511707ed8e0845493b2b84b
     .agents/skills/backlog-management/references/task-planning.md: sha256:f1ae9829f74b49cb1bcbe196a76b7038892e243258913b7ad57f3bc0f679822e
     .agents/skills/backlog-management/references/workflows.md: sha256:03103a72d8a01ed0a610590c7e8c3bd3e8aaf0ef76e493790bb579421d8d18d6
-  content_hash: sha256:c191aecd6944c1835c819627267d6f673724013ad082251ff895008c776c4190
+  content_hash: sha256:0bd1425b17b4ed615fe0e87cecd6085eaa1d62024130725f45bb6fa9a83635ce
 - repo_url: microsoft/hve-core
   name: backlog-plan
   host: github.com
@@ -5613,7 +5613,7 @@ dependencies:
   - .agents/skills/backlog-plan/SKILL.md
   deployed_file_hashes:
     .agents/skills/backlog-plan/SKILL.md: sha256:2a0db007564ccc100f1f383bb9af4429308e425c135997bd2bf901b3760139c2
-  content_hash: sha256:bf6d4221967d2042c372f66570fe8edf9ac5d55f50315211ae8d69da9d483cfa
+  content_hash: sha256:0356f547d4659d519fa93c44b67cb6025f06d5ef562fb270cfa597fa99e3faf0
 - repo_url: microsoft/hve-core
   name: experiment-design
   host: github.com
@@ -5640,7 +5640,7 @@ dependencies:
     .agents/skills/experiment-design/references/problem-framing.md: sha256:168b9a9529d0154fc3331d5600a99a01dee58f90b3be4ce0dc2b2f45ef1381dd
     .agents/skills/experiment-design/references/provenance.md: sha256:c9f57c9afef743c824fa4e7c47b254a418ac08a5bc8420c171f25fc8022997e7
     .agents/skills/experiment-design/references/rpi-research-preparation.md: sha256:6911acbf2e89fdec7b24ce163d66907af617679dac8a584d516377ae6f3eac4d
-  content_hash: sha256:3bd46062b8a2f6528f13f9463a4cca994f05412b2d91d78c66897b105ec9fdfc
+  content_hash: sha256:cc873307b80b3c007a97532eb7a4dbb400d5155d01740e387ab3c3c3ef40582e
 - repo_url: microsoft/hve-core
   name: functional-planner
   host: github.com
@@ -5669,7 +5669,7 @@ dependencies:
     .agents/skills/functional-planner/references/frameworks/scrum.md: sha256:fef5612f8b5b198eec458a6cf633a35a090c3d0a81890150ed2fdd151d645bea
     .agents/skills/functional-planner/references/github.md: sha256:c883b8a27708d5567cdda346a14d47e35fb2a685e9158e434b1194b406b531a8
     .agents/skills/functional-planner/references/jira.md: sha256:d477f0a1842f4865dee4a33060cfdf22c28affc26f74de6097b547bcc1102c3b
-  content_hash: sha256:e3e7005573179bd380399f4de710fe6e1a3d6b01d1c195544856e2c9a8d01905
+  content_hash: sha256:875e16a8d27bb6a38c7cd855702a0d090af38a8779af3dcfb1c0db944e40d4cd
 - repo_url: microsoft/hve-core
   name: gitlab
   host: github.com
@@ -5800,7 +5800,7 @@ dependencies:
     .agents/skills/gitlab/tests/test_gitlab_oauth.py: sha256:5dfadf6e10f4e17c0b86b8d75f1de89239925c640bf6ac47dd428c9448984a32
     .agents/skills/gitlab/tests/test_gitlab_transport.py: sha256:959fc267e5d1ddeb3f52ab49a2538fad5efdeb63d67d9f516a971da06b07e122
     .agents/skills/gitlab/uv.lock: sha256:d5649c28a9cd7ef2926fa5f8feee754ec84c4ee36d703338fde02bb2723d204d
-  content_hash: sha256:c872fbb1e801bbd98e22f12d9ce73631d9915eb8396bf2b16e5a8de45d4a1816
+  content_hash: sha256:58bd93b2850221d7ecb13db55d4d558d28b5b88307463ecab03d8e4b8a5d18bc
 - repo_url: microsoft/hve-core
   name: jira
   host: github.com
@@ -5909,7 +5909,7 @@ dependencies:
     .agents/skills/jira/tests/test_jira_main.py: sha256:408ce814de436acaced7720f3de76b5aea7720d8b835cf865f6c9d789c92ae4c
     .agents/skills/jira/tests/test_jira_transport.py: sha256:efb33e0f8fa641713dea3c3461f013a6b25d8e229e580e663b41798de8733a19
     .agents/skills/jira/uv.lock: sha256:00fb37af03c5639d94bb7b09e7edb87880e706c14fe6ebb105116ba0e147a4a9
-  content_hash: sha256:ea8dbc2bae44465dec8a685767ae0efbed30d1c5824349ae9cd90a20f9ff3eda
+  content_hash: sha256:0fc74c624a6dd4a2526e031932927417a9c9d4e5e42b4ba439bccb6be7fce302
 - repo_url: microsoft/hve-core
   name: outcome-hypothesis
   host: github.com
@@ -5930,7 +5930,7 @@ dependencies:
     .agents/skills/outcome-hypothesis/SKILL.md: sha256:14238389c88605943f5095f091a71e7bd58d7d1668a1ecdc113c8cbb66b71f97
     .agents/skills/outcome-hypothesis/references/readiness-and-validation.md: sha256:e2bfd1649c4f9cb9deb4b53cf0dcb5f7dcd67aabc2bcabc1bb4ea80c6647d0a9
     .agents/skills/outcome-hypothesis/templates/outcome-hypothesis.md: sha256:07a656c9d533b31170d0e2fcfbe5a76ee7a175bf63b7156d0e6c669c768a1291
-  content_hash: sha256:f1ece6d1cfab0a2666795da6e34c07cc672946c51a26c195d3d8454f429cee67
+  content_hash: sha256:c7d07a42d2a31daf1780f59a57ce28e443bdeba51a4b444d6e52ff3a55453107
 - repo_url: microsoft/hve-core
   name: performance-slo-planner
   host: github.com
@@ -5947,7 +5947,7 @@ dependencies:
   - .agents/skills/performance-slo-planner/SKILL.md
   deployed_file_hashes:
     .agents/skills/performance-slo-planner/SKILL.md: sha256:7b34e54b4603d008590df8ffed7bb03a60ced03276fede2e41231411c5af2374
-  content_hash: sha256:abc8d8d4ecf6fa535c5319f0ecd0d6a67f8d34a3038eb6bf66f7869fe3474ebb
+  content_hash: sha256:c77ed349cc06ddd3db5d52b839b3115f67006d19efbafeb08c90a451b7691d5f
 - repo_url: microsoft/hve-core
   name: privacy-standards
   host: github.com
@@ -5978,7 +5978,7 @@ dependencies:
     .agents/skills/privacy-standards/references/nist-privacy-framework.md: sha256:ef9d1b28a550adeefc38b43268b172c67f7134d4fb2950c074008f48098aac92
     .agents/skills/privacy-standards/references/nistir-8062.md: sha256:3d74f827db19e00da2bd014ce9c7acc91ace26b8716204e6f20b0d00d6aafd40
     .agents/skills/privacy-standards/references/owasp-top-10-privacy-risks.md: sha256:527461d0c24ec2c9b6c282cfd4994fd5eec1ad343ddfdfdd8f444014420a998d
-  content_hash: sha256:7228465c61cc01df90f6ca9806d53efd15fa5d56993c333a813be11e1e23c435
+  content_hash: sha256:a0b1f276a0527d8c039e826adf5a4e16667d45cddbf1e1532dc3d59d61092712
 - repo_url: microsoft/hve-core
   name: proposal-response
   host: github.com
@@ -6007,7 +6007,7 @@ dependencies:
     .agents/skills/proposal-response/templates/business-evidence-appendix.md: sha256:0a25ab05f555e06669c185a0f8b4d7bb11374edff99d2f152fd18130d155d816
     .agents/skills/proposal-response/templates/product-evidence-appendix.md: sha256:f4ef9fd75206e07b5141bffd69bedea6de7b0688030791a7e63d8fd8bb6756b5
     .agents/skills/proposal-response/templates/response-draft.md: sha256:5ac75638a32a415aa3710bf3715a1339c235b671721bad940e73590e4000ed00
-  content_hash: sha256:2a1838a352d3eccb6344121dab5d126767a8c59e411b280620d327b1c20aec5f
+  content_hash: sha256:33e32798d1c05b62031028ea94469591b6033552f9ea72b1063f7228cbae24cc
 - repo_url: microsoft/hve-core
   name: rai-planner
   host: github.com
@@ -6034,7 +6034,7 @@ dependencies:
     .agents/skills/rai-planner/references/impact-assessment.md: sha256:2b57c938936b375d6094d3c662fa84798621dd3f3b12e033a4855545be48767f
     .agents/skills/rai-planner/references/risk-classification.md: sha256:652e91d09442606efe9f3994184f9dc7def9bf2b29b2317d1733604f452faf38
     .agents/skills/rai-planner/references/security-model.md: sha256:7162bdb7ae7e8cf158152a36985c3f59cae73150d54daf1f967d0d1d47859a80
-  content_hash: sha256:784664f25f88e980c09129950879c3db61de9a29da697fabee8ae4169f54e6ff
+  content_hash: sha256:0afe4f6a04c577e01952a1bc6ba478b3a5171baa593154b8825bca1bb36a6638
 - repo_url: microsoft/hve-core
   name: requirements-author
   host: github.com
@@ -6141,7 +6141,7 @@ dependencies:
     .agents/skills/requirements-author/templates/brd/diagram-ascii.md: sha256:d090edc331883d95ecca25c387ebbdf59d3ca22fe1891c4d73f58b8fdc00a0e6
     .agents/skills/requirements-author/templates/brd/diagram-mermaid.md: sha256:4ae3f845baae58e78fbd89211c3dd5ffa713b7abd09a93a3031e2971358ea9e8
     .agents/skills/requirements-author/templates/prd/prd-full.md: sha256:bd46c66c27ed7efd7dfa47ab8dfae3cc885d64f718c9b451d13e6bd30e192c35
-  content_hash: sha256:d4b7b94cd869acf06ec3d6817c64047a1948f0c501c4cc03d5fdab574a8779aa
+  content_hash: sha256:945e8d14d4e7b35b5c4e063865815cde47aba76616435aee97b0e1428b42ed35
 - repo_url: microsoft/hve-core
   name: security-planning
   host: github.com
@@ -6264,7 +6264,7 @@ dependencies:
     .agents/skills/security-planning/tests/test_tm7_visual_feedback.py: sha256:d43fba2503f145fa66aedd7d3661050b26d9aea567769c183ca7438af3a401cc
     .agents/skills/security-planning/tests/test_validate_tm7_with_tmt.py: sha256:2a5151730b810e57b2530cdd54f568cd4f9ed1aeae77a8758bf65cfd539ffa3a
     .agents/skills/security-planning/uv.lock: sha256:6c8dd587de47553a8e9125c2c5dc8e841e8c394f360403e5f6420c4b0a4548d1
-  content_hash: sha256:b771e2fdca8ccf002d58d3f9e12f17a1e5a15548078d8377386335e36f2aebc7
+  content_hash: sha256:e1c41d8a248f2f0da5bd435dda8b25c6f494fc4a42786ee867788b766dcdc950
 - repo_url: microsoft/hve-core
   name: rai-standards
   host: github.com
@@ -6293,7 +6293,7 @@ dependencies:
     .agents/skills/rai-standards/references/nist-ai-rmf-manage.md: sha256:d3c13b24858cac2f9435960e0265136286572871567fc95756285adc07e2ecce
     .agents/skills/rai-standards/references/nist-ai-rmf-map.md: sha256:5d8aeb431502465edef47f4aab6b3bb1e591717383290f486c56d9f6020cf34b
     .agents/skills/rai-standards/references/nist-ai-rmf-measure.md: sha256:2420d8d28f98a74e3476f42232ef97feedd1ae04628d09a2c3c52a215eae69bf
-  content_hash: sha256:2b8e964f88da930e8d0125bbf1281bf025387686d5290233fe8d0e5faae93cda
+  content_hash: sha256:511e2b38e5a35b2d9e36136a8b2fab3e374dcbc6a4b66f0ee7e20abe4dad4147
 - repo_url: microsoft/hve-core
   name: rpi-challenger
   host: github.com
@@ -6314,7 +6314,7 @@ dependencies:
     .agents/skills/rpi-challenger/SKILL.md: sha256:170347309facb5dd9866332d6a0cc571b8660dbba041c3aaeefde5c02ce55ace
     .agents/skills/rpi-challenger/references/challenge.md: sha256:173d169870900ee9756b1d4116847913712bc125431ac31fe18c23f9b5bc265f
     .agents/skills/rpi-challenger/templates/challenge-session.md: sha256:3272a74827a9f997e396d8990103df69c14255ab0ac9b29716ae9796dd0e223c
-  content_hash: sha256:cb07d4c616d390fd1dbe49f5ecade79f7e2a332f44670b2ba755b6fc355ff9da
+  content_hash: sha256:fad091bbb2dfc99d23654a7b95af25bdc595c47c3b211c591059ed3e59a5747d
 - repo_url: microsoft/hve-core
   name: rpi-implement
   host: github.com
@@ -6335,7 +6335,7 @@ dependencies:
     .agents/skills/rpi-implement/SKILL.md: sha256:107fbfdd1dff10d565f6396a08481670da5f5bd1982f56ffb7df6797aaa80521
     .agents/skills/rpi-implement/references/implementation.md: sha256:0caf4750846ab341d936127352197e2a4eee7cea008e76331e0459fec5de2241
     .agents/skills/rpi-implement/templates/changes-log.md: sha256:160a4b8aa7bfd12f7a0c4e4d16f97e544a354de7594a68d79d3f74d9ba28eb51
-  content_hash: sha256:ae4a7eb55877a1954d8a10064d85be47421be67e8971c60199944af90ea3950e
+  content_hash: sha256:b9934408d44a29d3f5b56de075a5e615eb753eb710ce76cbe824ee17dc9fc29f
 - repo_url: microsoft/hve-core
   name: rpi-plan
   host: github.com
@@ -6356,7 +6356,7 @@ dependencies:
     .agents/skills/rpi-plan/SKILL.md: sha256:e75ee92f41e31154f5c3151c3b1ed9fee81ad3d4617fcda14527f4eccd040626
     .agents/skills/rpi-plan/references/planning.md: sha256:4324a7ef537df201ed6bd54406023aeba7a3f5b4a4aded7818a487e21babca1a
     .agents/skills/rpi-plan/templates/implementation-plan.md: sha256:c0a5327cfab9cf3275a317d4784a2822eeb189fafe582eac8dd225b43a764ac0
-  content_hash: sha256:78619cf16bfd3c9834de32d23e3c4a10c385e504e16cd392bfb48d38957d53e3
+  content_hash: sha256:d99920e09b60fb4a71122ddcf3a2c75b8933d1cbafadc885cc697ad948b7516f
 - repo_url: microsoft/hve-core
   name: rpi-plan-critique
   host: github.com
@@ -6375,7 +6375,7 @@ dependencies:
   deployed_file_hashes:
     .agents/skills/rpi-plan-critique/SKILL.md: sha256:670053724a7a38aa1a37bffa9048c83ccee6474d1c0a8e74e54c877977e0f4bf
     .agents/skills/rpi-plan-critique/templates/plan-critique.md: sha256:7456f85910858397859c76c2e7cc3e8df1006401c21579136f49752f54330991
-  content_hash: sha256:629a66cb8350416072bb655707521715073b0237e531a5bc2b5596f4456f82ce
+  content_hash: sha256:c076dfbc9ae9107688f1d78a06f4ce5608ed23c755696b75651044c4e325a03e
 - repo_url: microsoft/hve-core
   name: rpi-research
   host: github.com
@@ -6396,7 +6396,7 @@ dependencies:
     .agents/skills/rpi-research/SKILL.md: sha256:587b312fcab209f8c7639a32d517c3f1aec94919447e22afb4721b5fb2e8e46b
     .agents/skills/rpi-research/references/research.md: sha256:e10c67101fafe609e7e25b2e0156bf3cd4a882a7330d7e92b0425133d1b5f1c9
     .agents/skills/rpi-research/templates/research.md: sha256:edf70a6764c70dfe10dd185f5a820865dfd9db66f7dc4d7b7597c0d2f0e2d7ce
-  content_hash: sha256:73c1d6e55cb536fc52c6bb74ba3f4358351317a8c2d80ea7922467f493354519
+  content_hash: sha256:85de441b0b7f4d29a0307203b97a4321a2a3d100038542ca551a2bb36979c887
 - repo_url: microsoft/hve-core
   name: rpi-review
   host: github.com
@@ -6417,7 +6417,7 @@ dependencies:
     .agents/skills/rpi-review/SKILL.md: sha256:ef892214d3cd0b03861a9a386faa8f5df6d832e9185d6b370fe0527d04d5305f
     .agents/skills/rpi-review/references/review.md: sha256:4cf3d70c3b57de170bdd0f3f6194d7e1471c27d5625ddc96f123cae0fee11e58
     .agents/skills/rpi-review/templates/review-log.md: sha256:453ff53d974c753128bce59349f6c839ef369c8c971e91f5aef8a509b212d89e
-  content_hash: sha256:8983c8a2abd8b109196a2fff46c7d95c9d8c2a48a6da5dcd160a95ebba29589f
+  content_hash: sha256:fb7194578259bcf6caf77b7f4f25b7c5d108492eff0f35f23789f276ddff1a3b
 - repo_url: microsoft/hve-core
   name: rpi-walkthrough
   host: github.com
@@ -6438,7 +6438,7 @@ dependencies:
     .agents/skills/rpi-walkthrough/SKILL.md: sha256:c89c9057751df3346f66f22c7d1d86f4a8f7fb353af6f9bab6590c129f1f4ad8
     .agents/skills/rpi-walkthrough/references/walkthrough.md: sha256:19506b6b69623a2ad0f3e3b42b2c2b13669d6491b7a9af5e28e81ac11ea8e6b6
     .agents/skills/rpi-walkthrough/templates/walkthrough.md: sha256:33feda64d8e5a2ac9e4aea95bface4d4cce9b8b10c9ebdcc3a6f61d91ba18610
-  content_hash: sha256:6cb66015f543057f87a2e737d4a2302b6f07b74dbfacdb3da3d9358b3e12ed4d
+  content_hash: sha256:3526e52b9ce67a0de28f41568a6ebdee8513cc2a6f9976a708ea06cae9f9b769
 - repo_url: microsoft/hve-core
   name: gh-code-scanning
   host: github.com
@@ -6463,7 +6463,7 @@ dependencies:
     .agents/skills/gh-code-scanning/scripts/Get-CodeScanningAlerts.ps1: sha256:4fe46e77923205c4f27245a8b8f7640e115185a6f25236ee0570c7a94f739719
     .agents/skills/gh-code-scanning/scripts/get-code-scanning-alerts.sh: sha256:14164ef75021b0be49790ae122545b9828615a7eb0de06a39e08ab63857cb6af
     .agents/skills/gh-code-scanning/tests/Get-CodeScanningAlerts.Tests.ps1: sha256:3394d076eee56c280a2031de5abefc81b788245a9f0be5d54f460d3f217fd02f
-  content_hash: sha256:bc76ba525492c81f216b1bd0c9f4e35fb7336eef2b55f700ee9d410f82510bd4
+  content_hash: sha256:d476672d76480c1ba68d065a5ea7a546591289d5c8df90a26ea8fd24fa98c5f6
 - repo_url: microsoft/hve-core
   name: mcsb
   host: github.com
@@ -6508,7 +6508,7 @@ dependencies:
     .agents/skills/mcsb/references/11-devops-security.md: sha256:96cb6c51830206d9c57a1d29e4402887f914c5b5fac9085ce18bfe6b2d05f8b1
     .agents/skills/mcsb/references/12-ai-security.md: sha256:bf98b4be881feea8d561e08adcb8809f4d858196745dabff890410f5465b7c5e
     .agents/skills/mcsb/references/lookup-playbook.md: sha256:b3f500868e1fdd65bf0b4f1b8f6242ab7b50a0a3ca45e5a55381267a4c0db708
-  content_hash: sha256:6bac0f0b43577806e5cbf9c1c0ab72cc539b79aa0c5702cb3e3100efc575ddd8
+  content_hash: sha256:dcc1f6eefc6e723eedaf1952553ca41f5abb76db4fc3fa2345b66fbdb999b30f
 - repo_url: microsoft/hve-core
   name: owasp-agentic
   host: github.com
@@ -6547,7 +6547,7 @@ dependencies:
     .agents/skills/owasp-agentic/references/08-cascading-failures.md: sha256:91090a77db97f64b0296a62631358a408237c57e1e7c170047f19215c443bd57
     .agents/skills/owasp-agentic/references/09-human-agent-trust-exploitation.md: sha256:0d047984d501c06288b5f01c74d690ed11dd08f63be648c96b4a932c9f3aff48
     .agents/skills/owasp-agentic/references/10-rogue-agents.md: sha256:64a2386ad3452af7f4657f0a4f470f3ba2557bb0be66ffc2991969845075163f
-  content_hash: sha256:a30ba210df98abface3b647797c98008b2ad4d2c43a826e61053f9cf5f7e2a72
+  content_hash: sha256:3a06e72e7ec901ce3c708c9e85713ade6f4fbef5b4607a8351e060b0af914920
 - repo_url: microsoft/hve-core
   name: owasp-cicd
   host: github.com
@@ -6586,7 +6586,7 @@ dependencies:
     .agents/skills/owasp-cicd/references/08-ungoverned-usage-of-3rd-party-services.md: sha256:e5e02de34eebe68c88bca505e38174975b19e2595938a4bec70cc4ef06fc391a
     .agents/skills/owasp-cicd/references/09-improper-artifact-integrity-validation.md: sha256:6dd7d9ced0093c74001b9c53d15cb8f7f524d240e0db721d9772b72268cc80e4
     .agents/skills/owasp-cicd/references/10-insufficient-logging-visibility.md: sha256:fba59ed34156f630e0e4ee09b8384bec3d0c3b24ecb1b2d7d9bdb2b80f71ace5
-  content_hash: sha256:2ef3abdfa5369260833571939ad1ab3003d726dafe69a7d1bfa10643566756fa
+  content_hash: sha256:9286142fc6372c71d9f1852603d90a286df4964bab811b6b802504b4991cc65d
 - repo_url: microsoft/hve-core
   name: owasp-docker
   host: github.com
@@ -6617,7 +6617,7 @@ dependencies:
     .agents/skills/owasp-docker/references/04-secure-defaults-hardening.md: sha256:dd57eb4bf5df5976052d9f9937ce5ddd48970ac6c60a7503963223ed1aa2e703
     .agents/skills/owasp-docker/references/05-maintain-security-contexts.md: sha256:f9fa5bc7dac96fe2af9019b5ba70bea794e51cd3d9a9c6cbc97736ffa638b63c
     .agents/skills/owasp-docker/references/06-resource-protection.md: sha256:b0c3feadeac4acfcb779e270329192c8603e947dfc0ec77eeac6777c38c8b171
-  content_hash: sha256:9d08a6471e6540b1aa68d6b3961d2dd2624fdf94172e6b2da98c48ddbea4503a
+  content_hash: sha256:9e0d89dc966a3599a76ccb37d00c3b857939cedd1b1e4e7c928b6435e4646caf
 - repo_url: microsoft/hve-core
   name: owasp-infrastructure
   host: github.com
@@ -6656,7 +6656,7 @@ dependencies:
     .agents/skills/owasp-infrastructure/references/08-information-leakage.md: sha256:6a5a8d1903424058b389d6e1a278e13bdbf83e43ab9b2121ff1d654aca4ff243
     .agents/skills/owasp-infrastructure/references/09-insecure-access-resources-management-components.md: sha256:0c8ad8189b94c80618a0731ceca844ca69856d35c36301993dddba10aae259ac
     .agents/skills/owasp-infrastructure/references/10-insufficient-asset-management-documentation.md: sha256:e694038073afa8c9179b89c61edb0558510ee6969524aa8f8ee60cf1f94593e8
-  content_hash: sha256:5cb9d7360ee9de82784f2d0c77c3f8be817006a82a66b4a05c7ab59c7202131e
+  content_hash: sha256:5e905a50726bff6564fc45007fed7f59bfcfc416acc8965a2f65b9436a816628
 - repo_url: microsoft/hve-core
   name: owasp-llm
   host: github.com
@@ -6695,7 +6695,7 @@ dependencies:
     .agents/skills/owasp-llm/references/08-vector-and-embedding-weaknesses.md: sha256:4c915a9a9a6f2a8d40a2f36bc9b294177d01b52e6f74b6f28bab45d424096698
     .agents/skills/owasp-llm/references/09-misinformation.md: sha256:c22cb1b7f5e678e9fbb3d3559fff22e81cb69effd23eaad6db319da8f3ff82ad
     .agents/skills/owasp-llm/references/10-unbounded-consumption.md: sha256:5de6b6f9804dc9e1125a370a8d7c721a01a8d3cf8a3f5f7eef21390c5bdb40ee
-  content_hash: sha256:80e64e8ac033be3b5216acd0e183babe1753367b39796e18175f6f4b1d0ef137
+  content_hash: sha256:b76377c5e8f779ba7c10bcfe6ee97394de8a33a4a3f5f9693941d9e0fa0f4f40
 - repo_url: microsoft/hve-core
   name: owasp-mcp
   host: github.com
@@ -6734,7 +6734,7 @@ dependencies:
     .agents/skills/owasp-mcp/references/08-lack-of-audit-telemetry.md: sha256:ae9643190edfe5b2c3bf8ba327a664d8699578edd3d19f9763bd13f1859cf2a2
     .agents/skills/owasp-mcp/references/09-shadow-mcp-servers.md: sha256:8a4302d1a905e2289e16ef3a44548da83b4563525c68ff536ce603d6da4c0657
     .agents/skills/owasp-mcp/references/10-context-injection-over-sharing.md: sha256:1b81da7ef04e4ee467558978e227a6f832c1e7332a180a05950f38fa987360e6
-  content_hash: sha256:83c9f91e6be59298019c96966cd9bb1412710cd65ae25d068bc18c69373e69a8
+  content_hash: sha256:134bc957ce48e97108b9b641a5fa90b7ab7b0ef0094c3ae645d4df858c3b399b
 - repo_url: microsoft/hve-core
   name: owasp-top-10
   host: github.com
@@ -6773,7 +6773,7 @@ dependencies:
     .agents/skills/owasp-top-10/references/08-software-data-integrity-failures.md: sha256:25b0c8b0c2ce9d7550d93d709eadcba29a0db6decf036930fd07fd5dbfa95348
     .agents/skills/owasp-top-10/references/09-security-logging-alerting-failures.md: sha256:80d99f9de74c77f5dcd9fc3bd6bf5151f90b094fcc65c3f40d30ea2a593e60f3
     .agents/skills/owasp-top-10/references/10-mishandling-exceptional-conditions.md: sha256:e02a46f381f7499ddfe62b61ce8473adbeb39c0930bede6b9bca8ee188671cba
-  content_hash: sha256:3ddc82e0da7b7e358308dd92bf3a6750abcfb2e6cc3139df3a39a76560d65eb8
+  content_hash: sha256:7924d68a2226707e3e2b91d7ae563cb080603f85abbab899ff79c9cb85889ac9
 - repo_url: microsoft/hve-core
   name: secure-by-design
   host: github.com
@@ -6814,7 +6814,7 @@ dependencies:
     .agents/skills/secure-by-design/references/09-defense-in-depth.md: sha256:4c7f710605501d3f1aac9c58471e7b2ef2902c653107a7227eda5d655a865daa
     .agents/skills/secure-by-design/references/10-continuous-assurance.md: sha256:2bf9d150e3ca95c4ed72288c9b8ed45a3922b298ddfb08700ae4793a3ef4303b
     .agents/skills/secure-by-design/references/11-secure-deprecation.md: sha256:0f1b791ffa1e6f9398f8a0285679482c467a4432e75c833ce843793a5d9f29c8
-  content_hash: sha256:3f2f89423fb9b3d95b899dd0b91dbbba751a1f62b8ee8ec389c7e793a1d00a36
+  content_hash: sha256:a74cd16df196b3e944a59b4cd63648afd1fde8e118ddf268539908b8b777ed9b
 - repo_url: microsoft/hve-core
   name: security-reviewer-formats
   host: github.com
@@ -6839,7 +6839,7 @@ dependencies:
     .agents/skills/security-reviewer-formats/references/finding-formats.md: sha256:a42614a39b28ac7814de7849b96054dd45ae363bd941ff01125c3a251df8e43b
     .agents/skills/security-reviewer-formats/references/report-formats.md: sha256:ecddb5236fb6ab0fc4fbf97126fb7207890ffd3b093beb1aa9b6e64f0c0bb837
     .agents/skills/security-reviewer-formats/references/severity-definitions.md: sha256:30ec1c7b7dec16c6932314c6cb038fb6221365b1d9ac60e408bfcae6927e1c6d
-  content_hash: sha256:36df4280c0a9bb34562d954fef622c6e5da5c51b796f5c981f751eb9adba6ca9
+  content_hash: sha256:caaea6e701d312b601b67cfe79d120bebac3724a22334796fb08069720148677
 - repo_url: microsoft/hve-core
   name: supply-chain-security
   host: github.com
@@ -6876,7 +6876,7 @@ dependencies:
     .agents/skills/supply-chain-security/references/scorecard-check-mapping.md: sha256:f5690d98da13b1bd09d04099350a2bb55da7a4ac73ed61fde0109d89a689e8bc
     .agents/skills/supply-chain-security/references/sigstore-maturity.md: sha256:358ac36c2e35e3a8711df82d93cfcaee795f4591e9875669e2d533dd4e29766f
     .agents/skills/supply-chain-security/references/slsa-levels.md: sha256:cad4c5b1a6faea61596b925cde4112ba33e341aa2bb99905a78cc3262bbfd321
-  content_hash: sha256:5b9101a2e6305f88264ab5f3431534a97499b4342ed8e0d9a9f51d365e948c70
+  content_hash: sha256:8e6ed62794f5e602d6994a7881bc7118b20098829a6fa44cd6307feb949f324a
 - repo_url: microsoft/hve-core
   name: vex
   host: github.com
@@ -6923,7 +6923,7 @@ dependencies:
     .agents/skills/vex/tests/fuzz_harness.py: sha256:2cfef6765a21ff77381fdb664eb9e0129316c36e6b2184559be0cbc196972b61
     .agents/skills/vex/tests/test_vex_gate.py: sha256:a3b9a527265ae25ab7680ee8d5ce24db25ac5ac39f51ca2f6be35b7de044c2ec
     .agents/skills/vex/uv.lock: sha256:089f6741eb7197e9630e560c12bbb3634609d06fb5b1820acc35bb286a2106a6
-  content_hash: sha256:9fedac3aee46d01ca996a38dc09a4836891d7bbbea6fdcbaa55c6ea50852a405
+  content_hash: sha256:6f22442f171d6a535f29c4e3972244a7485cd039c2ed18e1e1b6977d95430ea3
 - repo_url: microsoft/hve-core
   name: backlog-templates
   host: github.com
@@ -6940,7 +6940,7 @@ dependencies:
   - .agents/skills/backlog-templates/SKILL.md
   deployed_file_hashes:
     .agents/skills/backlog-templates/SKILL.md: sha256:916ecd958f409b2b699e15df64680d68bce2e501357bd9531540a4f28711e207
-  content_hash: sha256:34024e9240b059b4ba31a20d66fcf95a78da2f01651a914bbf733a6df9443e4f
+  content_hash: sha256:e2b64de505cb7dccd88793d3fa14e37b8d18442e260bd39c74f55ebb3d4f2262
 - repo_url: microsoft/hve-core
   name: pr-reference
   host: github.com
@@ -6981,7 +6981,7 @@ dependencies:
     .agents/skills/pr-reference/tests/list-changed-files.Tests.ps1: sha256:66b6d7fab3e6be9f0b33ba9101ed4bc261e3fd7b61cfd4cf13f7e10e7788d5bb
     .agents/skills/pr-reference/tests/read-diff.Tests.ps1: sha256:69a63d49ce581dd8f0c9ef302e1741fd0c6274c1406cf042da667e59ab8859f3
     .agents/skills/pr-reference/tests/shared.Tests.ps1: sha256:cd124ba4d2d2c2467e2c365cb5b03b31fafef472319f4df4692e17b19aeb0bba
-  content_hash: sha256:4fdeb7c99cd179b4898f394ed2c2d2730640e6d76d6a726ab6bb33f4a8c8e19e
+  content_hash: sha256:fe47f413de00ab81b557f7500858969801fa9a03fa2e73035f9f6b94ab645ee7
 - repo_url: microsoft/hve-core
   name: telemetry-foundations
   host: github.com
@@ -7002,7 +7002,7 @@ dependencies:
     .agents/skills/telemetry-foundations/SKILL.md: sha256:89008ec22d1b8c2cb261daa2c78ffe283f3688993de8837835ea2922d5faa214
     .agents/skills/telemetry-foundations/references/pii-denylist.md: sha256:6adaa14824bea5337e7a44140688f8c61daa9d1f548001682d4faeb9a27b5f8a
     .agents/skills/telemetry-foundations/references/proposed-additions.md: sha256:ecd81ba2e0fbd77219de68165681497bc0ae557bf9cf8467eaada9f64b15f8fb
-  content_hash: sha256:04a765f570552c66cb32b4b703e4ab41981a1a89f6fa6773534638aef9a0c41d
+  content_hash: sha256:d9cf2291a73822d009a4734822c9e21709d4bcb469903e9e35402fb72d06de20
 - repo_url: peter-n91/hve-squad
   materialization_repo_url: Peter-N91/hve-squad
   name: hve-squad-squad-asbuilt-author
