@@ -177,7 +177,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/squad-review-helper"
-          cp scripts/squad-watch/{policy,review}.cjs "$RUNNER_TEMP/squad-review-helper/"
+          cp scripts/squad-watch/{policy,review,diagnostics}.cjs "$RUNNER_TEMP/squad-review-helper/"
           node scripts/squad-watch/review.cjs prompt
           sha256sum .github/squad-watch.json apm.yml apm.lock.yaml .watch-run/request.json .watch-run/snapshot.json .watch-run/prompt.txt > "$RUNNER_TEMP/squad-review-helper/runtime.sha256"
       - name: Recheck directly before independent coordinator
@@ -188,6 +188,7 @@ jobs:
           script: |
             await require('./scripts/squad-watch/review.cjs').revalidate({ github, context, core });
       - name: Independent pr-N Squad (Requests-only, no PR code execution)
+        id: coordinator
         if: steps.check.outputs.duplicate != 'true' && steps.final-check.outputs.duplicate != 'true'
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -201,6 +202,23 @@ jobs:
           set -euo pipefail
           sha256sum --check --status "$RUNNER_TEMP/squad-review-helper/runtime.sha256"
           node "$RUNNER_TEMP/squad-review-helper/review.cjs" stage
+      - name: Record safe review runtime metadata
+        if: always() && steps.coordinator.outcome != 'skipped'
+        env:
+          AUDIT_MEMBER: pr-${{ inputs.pr_number }}
+          MODEL_OUTCOME: ${{ steps.coordinator.outcome }}
+          HANDOFF_OUTCOME: ${{ steps.stage.outcome }}
+          CLI_EXIT_CODE: ${{ steps.coordinator.outputs.cli_exit_code }}
+          DIAGNOSTIC_DIR: ${{ runner.temp }}/squad-review-diagnostics
+        run: node "$RUNNER_TEMP/squad-review-helper/diagnostics.cjs"
+      - name: Upload safe review runtime metadata only
+        if: always() && steps.coordinator.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: squad-review-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/squad-review-diagnostics/runtime-status.json
+          if-no-files-found: error
+          retention-days: 1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         id: result-upload
         if: steps.stage.outputs.artifact_name != ''

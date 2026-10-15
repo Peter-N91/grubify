@@ -179,6 +179,73 @@ function sanitized(value) {
   return value;
 }
 
+function auditTargets(sub) {
+  check(/^(?:issue|pr)-[1-9][0-9]*$/.test(sub), 'Invalid event audit member');
+  const root = '.copilot-tracking/squad/';
+  return ['federation.md', 'meta-routing.md', 'decisions.md', 'state.json',
+    'consumption.md', 'consumption-rates.md', `history/${sub}.md`, `members/${sub}`]
+    .map(filename => root + filename);
+}
+
+function workingFile(filename, cfg) {
+  const parts = filename.split('/');
+  for (let i = 1; i <= parts.length; i++) {
+    let stat;
+    try { stat = fs.lstatSync(parts.slice(0, i).join('/')); } catch (error) {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    }
+    check(!stat.isSymbolicLink(), 'Symlink audit/artifact path denied');
+    if (i < parts.length) check(stat.isDirectory(), 'Non-directory artifact parent denied');
+    else {
+      check(stat.isFile() || stat.isDirectory(), 'Non-regular artifact denied');
+      if (stat.isFile()) check(stat.size <= cfg.maximumFileBytes, 'Changed file exceeds size bound');
+      return stat;
+    }
+  }
+}
+
+function proposalPaths(cfg, sub, validate = filename => safePath(filename, cfg, sub)) {
+  const paths = new Set(git(['ls-files', '--modified', '--deleted', '--others', '--exclude-standard', '-z'])
+    .toString('utf8').split('\0').filter(Boolean));
+  let visited = 0;
+  // Squad state is normally ignored. Visit only exact shared files and this
+  // event member, never a broad force-add of the ignored federation or repo.
+  function visit(filename) {
+    check(++visited <= cfg.maximumFiles * 4, 'Audit traversal exceeds size bound');
+    const stat = workingFile(filename, cfg);
+    if (!stat) return;
+    if (stat.isDirectory()) {
+      validate(`${filename}/audit-path-check.md`);
+      const directory = fs.opendirSync(filename);
+      try {
+        let entry;
+        while ((entry = directory.readSync())) visit(`${filename}/${entry.name}`);
+      } finally { directory.closeSync(); }
+    } else {
+      validate(filename);
+      paths.add(filename);
+      check(paths.size <= cfg.maximumFiles, 'Too many proposed files');
+    }
+  }
+  for (const filename of auditTargets(sub)) visit(filename);
+  check(paths.size <= cfg.maximumFiles, 'Too many proposed files');
+  for (const filename of paths) {
+    validate(filename);
+    const stat = workingFile(filename, cfg);
+    check(!stat || stat.isFile(), 'Only regular proposed files are allowed');
+  }
+  return [...paths].sort();
+}
+
+function stageProposal(cfg, sub, validate) {
+  const paths = proposalPaths(cfg, sub, validate);
+  // Every explicit path was checked before -f; ignored app/dependency trees
+  // and other members are not candidates. Tracked deletions stay included.
+  if (paths.length) git(['add', '-f', '-A', '--', ...paths]);
+  return paths;
+}
+
 function changes(cfg, sub) {
   const entries = git(['diff', '--cached', '--raw', '-z', '--no-renames', '--no-ext-diff']).toString('utf8').split('\0');
   const result = [];
@@ -206,6 +273,13 @@ function changes(cfg, sub) {
 }
 
 function readStaged(filename) {
+  const entries = git(['ls-files', '--stage', '-z', '--', filename]).toString('utf8').split('\0');
+  if (!entries.some(entry => entry.endsWith(`\t${filename}`) && /^100644 [0-9a-f]+ 0\t/.test(entry))) {
+    const error = new Error('Incomplete Squad audit: required artifact absent from index. ' +
+      'Coordinator exit zero does not prove completed bootstrap or dispatch; no handoff is permitted.');
+    error.code = 'SQUAD_AUDIT_INCOMPLETE';
+    throw error;
+  }
   return sanitized(text(git(['show', `:${filename}`])));
 }
 
@@ -392,4 +466,5 @@ function escapeMarkdown(value) {
 
 module.exports = { check, config, integer, credits, digest, issueHash, authorized, validIssue,
   branchExists, attempt, requestBytes, execution, revalidateCurrent, git, text, safePath, sanitized,
+  auditTargets, workingFile, proposalPaths, stageProposal,
   changes, readStaged, baseAudit, memberBase, audit, regularFile, escapeMarkdown };

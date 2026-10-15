@@ -37,6 +37,7 @@ timeout --signal=TERM --kill-after=30s 30m \
     >/dev/null 2>&1
 RESULT=$?
 set -e
+printf 'cli_exit_code=%s\n' "$RESULT" >> "$GITHUB_OUTPUT"
 if (( RESULT != 0 )); then
   echo "::error::Squad interpretation failed or reached its time/credit/runtime bound (exit $RESULT). Raw CLI output is intentionally not published; no mutation handoff will be applied."
   exit "$RESULT"

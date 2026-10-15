@@ -133,7 +133,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/squad-helper"
-          cp scripts/squad-watch/{policy,handoff}.cjs "$RUNNER_TEMP/squad-helper/"
+          cp scripts/squad-watch/{policy,handoff,diagnostics}.cjs "$RUNNER_TEMP/squad-helper/"
           node scripts/squad-watch/handoff.cjs prompt
       - name: Recheck authorization and staleness after tool installation, immediately before model work
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -142,6 +142,7 @@ jobs:
             const prepare = require('./scripts/squad-watch/prepare.cjs');
             await prepare.revalidate({ github, context, core });
       - name: Run explicit federation coordinator (read-only credential boundary)
+        id: coordinator
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
         run: bash scripts/squad-watch/run-squad.sh
@@ -150,6 +151,23 @@ jobs:
         env:
           HANDOFF_DIR: ${{ runner.temp }}/squad-handoff
         run: node "$RUNNER_TEMP/squad-helper/handoff.cjs" stage
+      - name: Record safe runtime outcome even when audit validation fails
+        if: always() && steps.coordinator.outcome != 'skipped'
+        env:
+          AUDIT_MEMBER: issue-${{ needs.prepare.outputs.issue }}
+          MODEL_OUTCOME: ${{ steps.coordinator.outcome }}
+          HANDOFF_OUTCOME: ${{ steps.stage.outcome }}
+          CLI_EXIT_CODE: ${{ steps.coordinator.outputs.cli_exit_code }}
+          DIAGNOSTIC_DIR: ${{ runner.temp }}/squad-diagnostics
+        run: node "$RUNNER_TEMP/squad-helper/diagnostics.cjs"
+      - name: Upload safe runtime metadata only (never model output)
+        if: always() && steps.coordinator.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: squad-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/squad-diagnostics/runtime-status.json
+          if-no-files-found: error
+          retention-days: 1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         id: handoff-upload
         with:

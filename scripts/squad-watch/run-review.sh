@@ -23,6 +23,7 @@ timeout --signal=TERM --kill-after=30s 30m \
     -p "$(cat .watch-run/prompt.txt)" >/dev/null 2>&1
 RESULT=$?
 set -e
+printf 'cli_exit_code=%s\n' "$RESULT" >> "$GITHUB_OUTPUT"
 if (( RESULT != 0 )); then
   echo "::error::Independent Squad static review failed or exhausted its time/soft-credit allowance (exit $RESULT). No model output or misleading review will be published."
   exit "$RESULT"

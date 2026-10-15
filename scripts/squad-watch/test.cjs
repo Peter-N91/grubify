@@ -9,11 +9,12 @@ const { execFileSync } = require('node:child_process');
 const p = require('./policy.cjs');
 const prepare = require('./prepare.cjs');
 const handoff = require('./handoff.cjs');
+const diagnostics = require('./diagnostics.cjs');
 const apply = require('./apply.cjs');
 const { verifyInputs } = require('./check-apm.cjs');
 const original = process.cwd();
 const cfg = p.config();
-const directory = path.join(original, '.watch-validation', 'contracts');
+const directory = path.join(original, '.watch-validation', `contracts-${process.platform}-${process.pid}`);
 const clone = path.join(directory, 'checkout');
 let passed = 0;
 
@@ -75,6 +76,7 @@ function mock(request, options = {}) {
 
 function clean() {
   assert.equal(process.cwd(), clone, 'Fixture cleanup must stay in its disposable clone');
+  fs.rmSync(path.join(clone, '.copilot-tracking', 'squad'), { force: true, recursive: true });
   const files = p.git(['ls-files', '--cached', '--others', '--exclude-standard', '-z'])
     .toString('utf8').split('\0').filter(Boolean);
   for (const filename of files) {
@@ -90,19 +92,39 @@ function fixtures(request, options = {}) {
   const root = `.copilot-tracking/squad/members/${request.subSquad}/`;
   const state = {
     schemaVersion: '1.4',
+    updated: '2026-10-15T00:00:00Z', turn: 1, mode: 'autopilot',
+    activeRoles: ['developer'], openEscalations: [],
+    currentRun: {
+      sessionModel: cfg.model, modelOverrides: {}, estCostUsd: 0, estCreditsTotal: 0,
+      costPreflight: {
+        runId: '', roundId: '', ceilingUsd: null, evaluatedSpendUsd: 0, remainingUsd: null,
+        plannedDispatches: 0, projectedCostUsd: 0, reserveMultiplier: 3,
+        admissionCostUsd: 0, confidence: 'not-applicable', basis: 'not-requested',
+        decision: 'not-requested', reason: 'Offline synthetic fixture; no actual dispatch.'
+      }
+    },
+    notify: { approvalChannel: 'in-chat', enabled: false, email: '', github: { handle: '', repo: '' } },
     trigger: { source: request.source, ref: request.ref, eventId: request.eventId,
       actor: request.actor, runId: 'autopilot-run-offline-fixture' }
   };
   write('GrubifyApi/watch-contract-fixture.txt', options.content || 'Proposed text fix\n');
   write('.copilot-tracking/squad/federation.md',
-    `| Sub-squad | Profile | Kind | Location | Owner | Description |\n| ${request.subSquad}   | default | in-repo | members/${request.subSquad}/ | watch-mode | ${request.ref} draft |\n`);
+    `# Squad Federation — synthetic fixture only\n\n## Sub-Squads\n\n| Sub-squad | Profile | Kind | Location | Owner | Description |\n|-----------|---------|------|----------|-------|-------------|\n| ${request.subSquad}   | default | in-repo | members/${request.subSquad}/ | watch-mode | ${request.ref} draft |\n`);
   write(`.copilot-tracking/squad/history/${request.subSquad}.md`, 'Synthetic bootstrap evidence\n');
   write(root + 'state.json', JSON.stringify(state));
-  write(root + 'team.md', 'Synthetic test roster\n');
+  write(root + 'team.md', '# Synthetic test roster — not live dispatch\n\n' +
+    '| Role | Member Name | Agent Name (Primary) | Alternate Agents | Selection Cue | Invocation | Model Tier | Deliverable Root |\n' +
+    '|------|-------------|----------------------|------------------|---------------|------------|------------|------------------|\n' +
+    '| developer | | Squad Implementor | | Offline fixture only | subagent | standard | implementation/ |\n');
   write(root + 'consumption.md', 'Synthetic test consumption\n');
   write(root + 'decisions.md', 'Synthetic test decisions\n## Blocking findings\nNo live execution; @someone <script> ![link](unsafe)\n');
   write(root + 'history/autopilot-run-offline-fixture.md', 'Synthetic autopilot history\n');
-  write(root + 'history/Squad Implementor.md', 'Synthetic per-role history\n');
+  write(root + 'history/Squad Implementor.md', '# Synthetic per-role history — no real dispatch\n\n' +
+    '#### Consumption\n```json\n' + JSON.stringify({
+      model: cfg.model, model_source: 'agent-pinned', priced_as: cfg.model, model_tier: 'standard',
+      internal_turns: 0, input_tokens: 0, cached_tokens: 0, cache_write_tokens: 0, output_tokens: 0,
+      basis: 'Offline synthetic fixture, not live consumption or dispatch evidence'
+    }, null, 2) + '\n```\n');
   if (options.noState) fs.unlinkSync(root + 'state.json');
 }
 
@@ -132,6 +154,13 @@ function trustedFixture(request, customize = () => {}) {
 function stagedAudit(request) {
   p.git(['add', '-A', '--', '.copilot-tracking/']);
   return p.audit(request);
+}
+
+function ignoringAudit(action) {
+  const filename = '.git/info/exclude';
+  const previous = fs.readFileSync(filename);
+  fs.appendFileSync(filename, '\n/.copilot-tracking/squad/\n');
+  try { return action(); } finally { fs.writeFileSync(filename, previous); }
 }
 
 async function test(name, action) {
@@ -367,6 +396,136 @@ async function run() {
     fixtures(request, { noState: true });
     assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR));
   });
+  await test('real Git ignored-state failure reproduces then scoped staging and independent apply succeed', () => {
+    fixtures(request);
+    ignoringAudit(() => {
+      const oldPaths = p.git(['ls-files', '--modified', '--deleted', '--others', '--exclude-standard', '-z'])
+        .toString().split('\0').filter(Boolean);
+      assert.deepEqual(oldPaths, ['GrubifyApi/watch-contract-fixture.txt']);
+      p.git(['add', '-A', '--', ...oldPaths]);
+      assert.throws(() => p.git(['show', ':.copilot-tracking/squad/federation.md']),
+        error => error.status === 128 && /unknown revision or path|not in the index/.test(error.stderr.toString()));
+      const before = diagnostics.report(request.subSquad, 'success', 'failure', '0');
+      assert.equal(before.classification, 'incomplete-audit');
+      assert.deepEqual(before.auditPresence.federation, { disk: 'regular', index: false });
+      p.git(['read-tree', 'HEAD']);
+      // These are not audit candidates, even when the whole federation is ignored.
+      write('.copilot-tracking/squad/members/other/secrets.json', 'Never include other members\n');
+      write('.copilot-tracking/squad/logs/private.log', 'Never include runtime logs\n');
+      handoff.stage(request, cfg, process.env.HANDOFF_DIR);
+      const manifest = JSON.parse(fs.readFileSync(path.join(process.env.HANDOFF_DIR, 'handoff.json')));
+      assert(manifest.files.some(file => file.path === '.copilot-tracking/squad/federation.md'));
+      assert(!manifest.files.some(file => /other|private\.log/.test(file.path)));
+      assert.equal(diagnostics.report(request.subSquad, 'success', 'success', '0').classification,
+        'validated-handoff');
+    });
+    clean();
+    const result = apply.validateArtifact(request, cfg, process.env.HANDOFF_DIR);
+    assert(result.changes.length > 1);
+    assert.equal(result.audit.run, 'autopilot-run-offline-fixture');
+  });
+  await test('source-only success cannot bypass incomplete bootstrap', () => {
+    write('GrubifyApi/watch-contract-fixture.txt', 'Source alone is not a Squad run\n');
+    assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR),
+      error => error.code === 'SQUAD_AUDIT_INCOMPLETE' && !error.message.includes('Buffer'));
+    const result = diagnostics.report(request.subSquad, 'success', 'failure', '0');
+    assert.equal(result.auditPresence.federation.disk, 'absent');
+    assert.equal(result.classification, 'incomplete-audit');
+    assert(!JSON.stringify(result).includes('Source alone'));
+  });
+  for (const filename of ['secrets.json', 'logs/private.txt', 'session/raw.md', 'credentials.txt']) {
+    await test(`ignored current-member ${filename} is refused before staging`, () => {
+      fixtures(request);
+      write(`.copilot-tracking/squad/members/${request.subSquad}/${filename}`, 'Unpublishable\n');
+      ignoringAudit(() => assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR)));
+      assert.equal(p.git(['diff', '--cached', '--name-only']).length, 0);
+    });
+  }
+  await test('ignored audit file size and traversal count are bounded before staging', () => {
+    fixtures(request);
+    ignoringAudit(() => {
+      write(`.copilot-tracking/squad/members/${request.subSquad}/oversized.md`,
+        Buffer.alloc(cfg.maximumFileBytes + 1, 'a'));
+      assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR), /size bound/);
+      assert.equal(p.git(['diff', '--cached', '--name-only']).length, 0);
+      fs.unlinkSync(`.copilot-tracking/squad/members/${request.subSquad}/oversized.md`);
+      for (let i = 0; i < cfg.maximumFiles + 1; i++) {
+        write(`.copilot-tracking/squad/members/${request.subSquad}/entry-${i}.md`, 'Bounded\n');
+      }
+      assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR), /Too many/);
+    });
+  });
+  await test('ignored event directory symlink is refused without reading its target', () => {
+    fixtures(request);
+    const directory = `.copilot-tracking/squad/members/${request.subSquad}/linked`;
+    const target = path.join(clone, '.watch-run', 'private-fixture');
+    write(path.join(target, 'hidden.md'), 'Not audit evidence\n');
+    fs.symlinkSync(target, directory, process.platform === 'win32' ? 'junction' : 'dir');
+    ignoringAudit(() => assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR), /Symlink/));
+    assert.equal(fs.readFileSync(path.join(target, 'hidden.md'), 'utf8'), 'Not audit evidence\n');
+    fs.rmSync(directory, { recursive: true });
+  });
+  await test('safe diagnostic output rejects arbitrary outcome and exit text', () => {
+    const result = diagnostics.report(request.subSquad, '::error::private-input', '<script>', '999\nsecret');
+    assert.equal(result.modelStep, 'unknown');
+    assert.equal(result.handoffStep, 'unknown');
+    assert.equal(result.cliExitCode, null);
+    assert(!JSON.stringify(result).includes('private-input'));
+    assert.equal(diagnostics.report(request.subSquad, 'failure', 'skipped', '124').termination,
+      'timeout-or-killed');
+    assert.equal(diagnostics.report(request.subSquad, 'failure', 'skipped', '1').termination,
+      'nonzero-exit');
+    assert(!diagnostics.stageError(Object.assign(new Error('secret'), { status: 128 })).includes('secret'));
+    assert(!diagnostics.stageError(new Error('secret')).includes('secret'));
+  });
+  await test('trusted diagnostic entrypoint persists only fixed safe metadata after failure', () => {
+    const destination = path.join(clone, '.watch-run', 'safe-diagnostic');
+    const summary = path.join(clone, '.watch-run', 'summary');
+    execFileSync(process.execPath, [path.join(original, 'scripts', 'squad-watch', 'diagnostics.cjs')], {
+      env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot,
+        AUDIT_MEMBER: request.subSquad, MODEL_OUTCOME: 'success', HANDOFF_OUTCOME: 'failure',
+        CLI_EXIT_CODE: '0', DIAGNOSTIC_DIR: destination, GITHUB_STEP_SUMMARY: summary },
+      stdio: 'pipe'
+    });
+    const result = JSON.parse(fs.readFileSync(path.join(destination, 'runtime-status.json')));
+    assert.equal(result.classification, 'incomplete-audit');
+    assert.equal(result.cliExitCode, 0);
+    assert.equal(result.auditPresence.memberState.disk, 'absent');
+    assert.deepEqual(fs.readdirSync(destination), ['runtime-status.json']);
+    assert(fs.readFileSync(summary, 'utf8').includes('Credit exhaustion'));
+  });
+  if (process.platform !== 'win32') {
+    for (const script of ['run-squad.sh', 'run-review.sh']) {
+      await test(`${script} real Bash boundary records exit without leaking raw output (mock CLI, no AI)`, () => {
+        const bin = path.join(clone, '.watch-run', 'mock-bin');
+        const output = path.join(clone, '.watch-run', 'outputs');
+        write('.watch-run/request.json', JSON.stringify(request));
+        write('.watch-run/prompt.txt', 'Offline fixture, never a real model request\n');
+        const wrapper = path.join(clone, '.watch-run', 'runtime-fixture.sh');
+        write(wrapper, fs.readFileSync(path.join(original, 'scripts', 'squad-watch', script), 'utf8')
+          .replace(/\r\n/g, '\n'));
+        write(path.join(bin, 'copilot'), '#!/bin/bash\nprintf \"private fixture text must not escape\\\\n\" >&2\nexit \"$FIXTURE_EXIT\"\n');
+        fs.chmodSync(path.join(bin, 'copilot'), 0o755);
+        for (const code of [0, 7, 124]) {
+          write(output, '');
+          let stdout;
+          try {
+            stdout = execFileSync('bash', [wrapper], {
+              env: { PATH: `${bin}:${path.dirname(process.execPath)}:/usr/bin:/bin`,
+                HOME: path.join(clone, '.watch-run'), COPILOT_GITHUB_TOKEN: 'offline-dummy-not-a-credential',
+                GITHUB_OUTPUT: output, FIXTURE_EXIT: String(code) }, stdio: 'pipe'
+            }).toString();
+            assert.equal(code, 0);
+          } catch (error) {
+            assert.equal(error.status, code);
+            stdout = error.stdout.toString() + error.stderr.toString();
+          }
+          assert(!stdout.includes('private fixture text'));
+          assert.equal(fs.readFileSync(output, 'utf8'), `cli_exit_code=${code}\n`);
+        }
+      });
+    }
+  }
   await test('forbidden changes are rejected, not silently omitted', () => {
     write('infra/unauthorized.txt', 'no');
     assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR));
@@ -647,12 +806,18 @@ async function run() {
     assert.equal(api.writes.filter(([kind]) => kind === 'ref').length, 1);
     assert.equal(api.writes.filter(([kind]) => kind === 'pr').length, 0);
   });
-  await test('no-change handoff performs zero repository mutations', async () => {
-    handoff.stage(request, cfg, process.env.HANDOFF_DIR);
-    const api = mock(request);
-    await apply(api);
-    assert.equal(api.outputs.status, 'no-change');
-    assert.equal(api.writes.length, 0);
+  await test('empty coordinator output is incomplete, never a successful no-change bootstrap', () => {
+    assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR),
+      error => error.code === 'SQUAD_AUDIT_INCOMPLETE');
+  });
+  await test('independent apply also rejects a no-change artifact with missing audit', () => {
+    write(path.join(process.env.HANDOFF_DIR, 'squad-watch.patch'), '');
+    write(path.join(process.env.HANDOFF_DIR, 'handoff.json'), JSON.stringify({
+      schemaVersion: 1, ...p.execution(request), status: 'no-change', baseSha,
+      issue: request.issue, subSquad: request.subSquad, patchSha256: p.digest(''), files: []
+    }));
+    assert.throws(() => apply.validateArtifact(request, cfg, process.env.HANDOFF_DIR),
+      error => error.code === 'SQUAD_AUDIT_INCOMPLETE');
   });
 
   const workflow = fs.readFileSync(path.join(original, '.github/workflows/squad-watch.yml'), 'utf8');
@@ -663,6 +828,9 @@ async function run() {
   assert(!/^\s+(?:contents|issues|pull-requests): write$/m.test(interpreter));
   assert(!/secrets\.(?!COPILOT_GITHUB_TOKEN\b)/.test(interpreter));
   assert(interpreter.includes('persist-credentials: false'));
+  assert(interpreter.includes("if: always() && steps.coordinator.outcome != 'skipped'"));
+  assert(interpreter.includes('/squad-diagnostics/runtime-status.json'));
+  assert(!interpreter.includes('copilot-home/'));
   assert(interpreter.indexOf('await prepare.revalidate(') < interpreter.indexOf('secrets.COPILOT_GITHUB_TOKEN'));
   assert(interpreter.includes('artifact-ids: ${{ needs.prepare.outputs.request_artifact_id }}'));
   assert(workflow.includes('artifact-ids: ${{ needs.interpret.outputs.handoff_artifact_id }}'));
