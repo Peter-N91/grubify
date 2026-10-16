@@ -362,6 +362,9 @@ async function run() {
     assert(value.includes('sub=pr-7'));
     assert(value.includes('Squad Reviewer'));
     assert(value.includes('Code Review Functional'));
+    assert(value.includes('| Sub-squad | Profile | Kind | Location | Owner | Description |'));
+    assert(value.includes(`| watch: ${request.ref} | ${request.subSquad} | no |`));
+    assert(value.includes(`trigger.eventId="${request.eventId}"`));
     assert(value.includes('never execute PR code/tests'));
     assert(!value.includes('squad=pr-7'));
     assert(!value.includes('Review this source'));
