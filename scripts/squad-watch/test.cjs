@@ -238,6 +238,9 @@ async function run() {
     assert(value.includes('.watch-run/request.json'));
     assert(value.includes('A Risk Stop verdict stops Implement'));
     assert(value.includes('Run /squad-federation mode=autopilot\nwatch='));
+    assert(value.includes('| Sub-squad | Profile | Kind | Location | Owner | Description |'));
+    assert(value.includes(`| watch: ${request.ref} | ${request.subSquad} | no |`));
+    assert(value.includes(`trigger.eventId="${request.eventId}"`));
     assert(!value.includes(`squad=${request.subSquad}`), 'Explicit targets must not bypass new-event bootstrap');
   });
   await test('unauthorized initial actor is ignored without writes', async () => {
