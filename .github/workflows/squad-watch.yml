@@ -14,7 +14,7 @@ on:
         required: true
         type: string
       max_ai_credits:
-        description: 'Native shared session soft cap, 30..90 AI credits; blank uses 30 (NOT USD/tokens)'
+        description: 'Native shared session soft cap, 30..90 AI credits; blank uses 90 (NOT USD/tokens)'
         required: false
         default: ''
         type: string

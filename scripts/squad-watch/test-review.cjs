@@ -184,7 +184,7 @@ async function run() {
     assert.equal(request.automatic.source_attempt, '2');
     assert.equal(request.subSquad, 'pr-7');
     assert.equal(request.source, 'pr');
-    assert.equal(request.maxAiCredits, 30);
+    assert.equal(request.maxAiCredits, 90);
     assert.equal(request.headSha, api.linkage.headSha);
     assert.equal(api.sourceCalls.length, 2);
     assert.deepEqual(api.sourceCalls.map(call => call.ref), [baseSha, 'c'.repeat(40)]);
@@ -569,6 +569,8 @@ async function run() {
     assert.equal(calls.length, 1);
   });
   assert(workflow.includes("vars.SQUAD_WATCH_ENABLED == 'true'"));
+  const runner = fs.readFileSync(path.join(original, 'scripts/squad-watch/run-review.sh'), 'utf8');
+  assert(runner.includes('$CREDITS" == "90"'));
   assert(!/^\s*(pull_request_target|pull_request|push|schedule|issues|issue_comment|workflow_run):/m
     .test(workflow.split('\npermissions:')[0]));
   assert(workflow.includes('group: squad-review-pr-${{ inputs.pr_number }}'));

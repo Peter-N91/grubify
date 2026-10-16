@@ -186,7 +186,7 @@ async function run() {
     schemaVersion: 1, repository: cfg.repository, baseBranch: 'main', baseSha,
     issue: 42, ref: `${cfg.repository}#42`, source: 'issue', eventId: 'issues:142',
     actor: 'Peter-N91', triggeringActor: 'Peter-N91', runId: '123', runAttempt: '1',
-    subSquad: 'issue-42', branch: 'squad/issue-42', model: cfg.model, maxAiCredits: 30
+    subSquad: 'issue-42', branch: 'squad/issue-42', model: cfg.model, maxAiCredits: cfg.defaultAiCredits
   };
   request.issueHash = p.issueHash(mock(request).issue);
   process.env.TRIGGERING_ACTOR = 'Peter-N91';
@@ -210,7 +210,7 @@ async function run() {
     for (const value of ['0', '-1', '1.2', '1e2', ' 42', '42 ', '42;echo x', '9007199254740992']) {
       assert.throws(() => p.integer(value, 'input'));
     }
-    assert.equal(p.credits('', cfg), 30);
+    assert.equal(p.credits('', cfg), 90);
     assert.equal(p.credits('90', cfg), 90);
     for (const value of ['1', '29', '91', 'unset', '30.5']) assert.throws(() => p.credits(value, cfg));
   });
@@ -260,7 +260,7 @@ async function run() {
     const snapshot = JSON.parse(fs.readFileSync(path.join(process.env.REQUEST_DIR, 'request.json')));
     assert.equal(snapshot.eventId, 'issues:142');
     assert.equal(snapshot.branch, 'squad/issue-42');
-    assert.equal(snapshot.maxAiCredits, 30);
+    assert.equal(snapshot.maxAiCredits, 90);
     assert.equal(api.outputs.producer_attempt, '1');
     assert.equal(api.outputs.artifact_name, 'squad-request-123-1');
     assert.equal(api.outputs.request_sha256, p.digest(p.requestBytes()));
@@ -822,6 +822,7 @@ async function run() {
 
   const workflow = fs.readFileSync(path.join(original, '.github/workflows/squad-watch.yml'), 'utf8');
   assert(workflow.includes("vars.SQUAD_WATCH_ENABLED == 'true'"));
+  assert(workflow.includes('blank uses 90'));
   assert(!/^\s*(push|schedule|pull_request_target|pull_request|issue_comment|workflow_run):/m.test(workflow));
   for (const match of workflow.matchAll(/uses:\s+(\S+)/g)) assert(/@[0-9a-f]{40}$/.test(match[1]));
   const interpreter = workflow.split('\n  interpret:')[1].split('\n  apply:')[0];
