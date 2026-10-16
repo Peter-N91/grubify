@@ -3,7 +3,7 @@ set -euo pipefail
 test -n "${COPILOT_GITHUB_TOKEN:-}"
 MODEL="$(node -e "process.stdout.write(require('./.watch-run/request.json').model)")"
 CREDITS="$(node -e "process.stdout.write(String(require('./.watch-run/request.json').maxAiCredits))")"
-[[ "$MODEL" == "claude-sonnet-5" && "$CREDITS" == "30" ]]
+[[ "$MODEL" == "claude-sonnet-5" && "$CREDITS" == "90" ]]
 unset GH_TOKEN GITHUB_TOKEN
 export COPILOT_HOME="$PWD/.watch-run/copilot-review-home"
 mkdir -p "$COPILOT_HOME"
