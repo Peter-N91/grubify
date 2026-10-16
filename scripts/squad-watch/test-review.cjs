@@ -367,6 +367,7 @@ async function run() {
     assert(value.includes(`trigger.eventId="${request.eventId}"`));
     assert(value.includes('reviews/<lower-kebab-agent>.md'));
     assert(value.includes('A dispatch artifact is NEVER review.json'));
+    assert(value.includes('<scope path>:<positive line>'));
     assert(value.includes('never execute PR code/tests'));
     assert(!value.includes('squad=pr-7'));
     assert(!value.includes('Review this source'));
