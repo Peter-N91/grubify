@@ -589,7 +589,8 @@ async function run() {
   assert(!/secrets\.(?!COPILOT_GITHUB_TOKEN\b)/.test(workflow));
   const publish = workflow.split('\n  publish:')[1];
   assert(!publish.includes('secrets.'));
-  assert(!/^\s+(?:contents|pull-requests|actions): write$/m.test(publish));
+  assert(publish.includes('pull-requests: write'));
+  assert(!/^\s+(?:contents|actions): write$/m.test(publish));
   assert(workflow.includes('run-id: ${{ steps.source.outputs.source_run }}'));
   assert(workflow.includes('artifact-ids: ${{ needs.review.outputs.result_artifact_id }}'));
   assert(!workflow.includes('github.event.pull_request.head.sha'));
