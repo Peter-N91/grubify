@@ -20,5 +20,15 @@ tar --extract --gzip --file "$TOOLS/apm-linux-x86_64.tar.gz" --directory "$TOOLS
 "$TOOLS/apm-linux-x86_64/apm" --version | grep -F '0.29.0'
 node scripts/squad-watch/install-apm.cjs "$TOOLS/apm-linux-x86_64/apm"
 
-npm install --global --ignore-scripts "@github/copilot@1.0.93"
-copilot --no-auto-update version | grep -F '1.0.93'
+RUNTIME_PLUGIN="$TOOLS/hve-squad-runtime"
+test ! -e "$RUNTIME_PLUGIN"
+mkdir -p "$RUNTIME_PLUGIN/agents/squad" "$RUNTIME_PLUGIN/skills"
+cp scripts/squad-watch/runtime-plugin.json "$RUNTIME_PLUGIN/plugin.json"
+cp .github/agents/*.agent.md "$RUNTIME_PLUGIN/agents/squad/"
+cp -R .agents/skills/squad "$RUNTIME_PLUGIN/skills/squad"
+test -f "$RUNTIME_PLUGIN/agents/squad/squad-federation-coordinator.agent.md"
+test -f "$RUNTIME_PLUGIN/agents/squad/squad-scribe.agent.md"
+test -f "$RUNTIME_PLUGIN/skills/squad/SKILL.md"
+
+npm install --global --ignore-scripts "@github/copilot@1.0.98"
+copilot --no-auto-update version | grep -F '1.0.98'
