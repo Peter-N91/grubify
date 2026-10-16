@@ -13,11 +13,14 @@ CREDITS="$(node -e "process.stdout.write(String(require('./.watch-run/request.js
 # Only the Requests-only credential reaches the CLI. Its tool subprocesses
 # receive no copy of that secret. No raw CLI output/session artifact is published.
 unset GH_TOKEN GITHUB_TOKEN
+readonly REPO_ROOT="$PWD"
 export COPILOT_HOME="$PWD/.watch-run/copilot-home"
 mkdir -p "$COPILOT_HOME"
 set +e
 timeout --signal=TERM --kill-after=30s 30m \
   copilot --no-auto-update \
+    -C "$REPO_ROOT" \
+    --add-dir "$REPO_ROOT" \
     --agent squad-federation-coordinator \
     --model "$MODEL" \
     --max-ai-credits "$CREDITS" \

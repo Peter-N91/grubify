@@ -5,11 +5,14 @@ MODEL="$(node -e "process.stdout.write(require('./.watch-run/request.json').mode
 CREDITS="$(node -e "process.stdout.write(String(require('./.watch-run/request.json').maxAiCredits))")"
 [[ "$MODEL" == "claude-sonnet-5" && "$CREDITS" == "90" ]]
 unset GH_TOKEN GITHUB_TOKEN
+readonly REPO_ROOT="$PWD"
 export COPILOT_HOME="$PWD/.watch-run/copilot-review-home"
 mkdir -p "$COPILOT_HOME"
 set +e
 timeout --signal=TERM --kill-after=30s 30m \
   copilot --no-auto-update \
+    -C "$REPO_ROOT" \
+    --add-dir "$REPO_ROOT" \
     --agent squad-federation-coordinator \
     --model "$MODEL" --max-ai-credits "$CREDITS" \
     --no-ask-user --disable-builtin-mcps \
