@@ -48,7 +48,7 @@ function report(sub, modelStep, handoffStep, exitCode) {
 function stageError(error) {
   return error.code === 'SQUAD_AUDIT_INCOMPLETE' ? 'Incomplete Squad audit: coordinator exit zero is not completed bootstrap or dispatch. No handoff is permitted; inspect the safe runtime diagnostic.' :
     Number.isInteger(error.status) ? 'Git transport/index operation failed; no handoff is permitted.' :
-      'Squad handoff rejected by scope, integrity or audit policy; no handoff is permitted.';
+      `Squad handoff rejected by scope, integrity or audit policy; no handoff is permitted. Policy code: ${p.digest(String(error.message || '')).slice(0, 12)}.`;
 }
 
 if (require.main === module) {
