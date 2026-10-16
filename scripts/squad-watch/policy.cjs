@@ -28,6 +28,32 @@ function credits(value, cfg) {
   return cap;
 }
 
+function watchAuditContract(request) {
+  return [
+    'VALIDATOR-EXACT AUDIT BARRIER: complete these files before domain work. Do',
+    'not improvise legacy headers or state keys. federation.md must contain the exact',
+    'six-column header "| Sub-squad | Profile | Kind | Location | Owner | Description |"',
+    `and exactly one current row whose cells are "${request.subSquad}", a profile,`,
+    `"in-repo", "members/${request.subSquad}/", "watch-mode", and a description`,
+    `that contains "${request.ref}". meta-routing.md must use the exact header`,
+    '"| Pattern / Domain | Sub-squad | Parallel-Eligible |" and current row',
+    `"| watch: ${request.ref} | ${request.subSquad} | no |".`,
+    'Federation state.json must use schemaVersion "1.3", include subSquads and',
+    `activeSubSquads arrays containing only "${request.subSquad}" on blank init, and`,
+    'use no keys beyond schemaVersion, updated, turn, mode, subSquads,',
+    'activeSubSquads, openEscalations, currentRun and notify. Keep openEscalations',
+    'empty and notify disabled; omit currentRun rather than inventing spend.',
+    `Member state.json must use schemaVersion "1.4" and trigger.source="${request.source}",`,
+    `trigger.ref="${request.ref}", trigger.eventId="${request.eventId}",`,
+    `trigger.actor="${request.actor}", and trigger.runId="autopilot-run-<id>".`,
+    'The member must also have non-empty team.md, consumption.md, decisions.md with',
+    'a heading exactly "## Blocking findings", history/autopilot-run-<id>.md, and',
+    'at least one additional substantive history/<actual role>.md. The federation',
+    `must have non-empty history/${request.subSquad}.md. Re-read every exact field`,
+    'before domain work; malformed audit is not a valid result.'
+  ];
+}
+
 function digest(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
@@ -464,7 +490,7 @@ function escapeMarkdown(value) {
     .replace(/[\\`*_{}\[\]()#+.!|>@<&]/g, c => `\\${c}`);
 }
 
-module.exports = { check, config, integer, credits, digest, issueHash, authorized, validIssue,
+module.exports = { check, config, integer, credits, watchAuditContract, digest, issueHash, authorized, validIssue,
   branchExists, attempt, requestBytes, execution, revalidateCurrent, git, text, safePath, sanitized,
   auditTargets, workingFile, proposalPaths, stageProposal,
   changes, readStaged, baseAudit, memberBase, audit, regularFile, escapeMarkdown };
