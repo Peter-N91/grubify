@@ -494,26 +494,36 @@ async function run() {
     assert.deepEqual(fs.readdirSync(destination), ['runtime-status.json']);
     assert(fs.readFileSync(summary, 'utf8').includes('Credit exhaustion'));
   });
+  await test('both CLI launchers pin and trust the checked-out repository root', () => {
+    for (const script of ['run-squad.sh', 'run-review.sh']) {
+      const launcher = fs.readFileSync(path.join(original, 'scripts', 'squad-watch', script), 'utf8');
+      assert(launcher.includes('readonly REPO_ROOT="$PWD"'));
+      assert(launcher.includes('-C "$REPO_ROOT"'));
+      assert(launcher.includes('--add-dir "$REPO_ROOT"'));
+    }
+  });
   if (process.platform !== 'win32') {
     for (const script of ['run-squad.sh', 'run-review.sh']) {
       await test(`${script} real Bash boundary records exit without leaking raw output (mock CLI, no AI)`, () => {
         const bin = path.join(clone, '.watch-run', 'mock-bin');
         const output = path.join(clone, '.watch-run', 'outputs');
+        const argsFile = path.join(clone, '.watch-run', 'copilot-args');
         write('.watch-run/request.json', JSON.stringify(request));
         write('.watch-run/prompt.txt', 'Offline fixture, never a real model request\n');
         const wrapper = path.join(clone, '.watch-run', 'runtime-fixture.sh');
         write(wrapper, fs.readFileSync(path.join(original, 'scripts', 'squad-watch', script), 'utf8')
           .replace(/\r\n/g, '\n'));
-        write(path.join(bin, 'copilot'), '#!/bin/bash\nprintf \"private fixture text must not escape\\\\n\" >&2\nexit \"$FIXTURE_EXIT\"\n');
+        write(path.join(bin, 'copilot'), '#!/bin/bash\nprintf \"%s\\\\n\" \"$@\" > \"$FIXTURE_ARGS\"\nprintf \"private fixture text must not escape\\\\n\" >&2\nexit \"$FIXTURE_EXIT\"\n');
         fs.chmodSync(path.join(bin, 'copilot'), 0o755);
         for (const code of [0, 7, 124]) {
           write(output, '');
+          write(argsFile, '');
           let stdout;
           try {
             stdout = execFileSync('bash', [wrapper], {
               env: { PATH: `${bin}:${path.dirname(process.execPath)}:/usr/bin:/bin`,
                 HOME: path.join(clone, '.watch-run'), COPILOT_GITHUB_TOKEN: 'offline-dummy-not-a-credential',
-                GITHUB_OUTPUT: output, FIXTURE_EXIT: String(code) }, stdio: 'pipe'
+                GITHUB_OUTPUT: output, FIXTURE_ARGS: argsFile, FIXTURE_EXIT: String(code) }, stdio: 'pipe'
             }).toString();
             assert.equal(code, 0);
           } catch (error) {
@@ -522,6 +532,9 @@ async function run() {
           }
           assert(!stdout.includes('private fixture text'));
           assert.equal(fs.readFileSync(output, 'utf8'), `cli_exit_code=${code}\n`);
+          const args = fs.readFileSync(argsFile, 'utf8').trim().split('\n');
+          assert.equal(args[args.indexOf('-C') + 1], clone);
+          assert.equal(args[args.indexOf('--add-dir') + 1], clone);
         }
       });
     }
