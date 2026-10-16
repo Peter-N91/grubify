@@ -479,7 +479,9 @@ async function run() {
     assert.equal(diagnostics.report(request.subSquad, 'failure', 'skipped', '1').termination,
       'nonzero-exit');
     assert(!diagnostics.stageError(Object.assign(new Error('secret'), { status: 128 })).includes('secret'));
-    assert(!diagnostics.stageError(new Error('secret')).includes('secret'));
+    const safeError = diagnostics.stageError(new Error('secret'));
+    assert(!safeError.includes('secret'));
+    assert(safeError.includes(p.digest('secret').slice(0, 12)));
   });
   await test('trusted diagnostic entrypoint persists only fixed safe metadata after failure', () => {
     const destination = path.join(clone, '.watch-run', 'safe-diagnostic');
