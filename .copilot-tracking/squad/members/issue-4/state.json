@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.4",
+  "updated": "2026-10-16T08:11:24Z",
+  "turn": 1,
+  "mode": "autopilot",
+  "activeRoles": ["researcher", "developer"],
+  "trigger": {
+    "source": "workflow_dispatch",
+    "ref": "Peter-N91/grubify#4",
+    "eventId": "issues:5867467922",
+    "actor": "Peter-N91",
+    "runId": "autopilot-run-38871296173"
+  },
+  "openEscalations": [],
+  "notify": { "channel": "in-chat", "enabled": false }
+}
