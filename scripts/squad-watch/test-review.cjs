@@ -571,6 +571,7 @@ async function run() {
   assert(workflow.includes("vars.SQUAD_WATCH_ENABLED == 'true'"));
   const runner = fs.readFileSync(path.join(original, 'scripts/squad-watch/run-review.sh'), 'utf8');
   assert(runner.includes('$CREDITS" == "90"'));
+  assert(runner.includes('--agent hve-squad:squad-federation-coordinator'));
   assert(!/^\s*(pull_request_target|pull_request|push|schedule|issues|issue_comment|workflow_run):/m
     .test(workflow.split('\npermissions:')[0]));
   assert(workflow.includes('group: squad-review-pr-${{ inputs.pr_number }}'));

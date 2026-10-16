@@ -500,6 +500,8 @@ async function run() {
       assert(launcher.includes('readonly REPO_ROOT="$PWD"'));
       assert(launcher.includes('-C "$REPO_ROOT"'));
       assert(launcher.includes('--add-dir "$REPO_ROOT"'));
+      assert(launcher.includes('--plugin-dir "$RUNTIME_PLUGIN"'));
+      assert(launcher.includes('--agent hve-squad:squad-federation-coordinator'));
     }
   });
   if (process.platform !== 'win32') {
@@ -508,6 +510,9 @@ async function run() {
         const bin = path.join(clone, '.watch-run', 'mock-bin');
         const output = path.join(clone, '.watch-run', 'outputs');
         const argsFile = path.join(clone, '.watch-run', 'copilot-args');
+        const runnerTemp = path.join(clone, '.watch-run', 'runner-temp');
+        const plugin = path.join(runnerTemp, 'squad-tools', 'hve-squad-runtime');
+        write(path.join(plugin, 'plugin.json'), '{}');
         write('.watch-run/request.json', JSON.stringify(request));
         write('.watch-run/prompt.txt', 'Offline fixture, never a real model request\n');
         const wrapper = path.join(clone, '.watch-run', 'runtime-fixture.sh');
@@ -523,7 +528,8 @@ async function run() {
             stdout = execFileSync('bash', [wrapper], {
               env: { PATH: `${bin}:${path.dirname(process.execPath)}:/usr/bin:/bin`,
                 HOME: path.join(clone, '.watch-run'), COPILOT_GITHUB_TOKEN: 'offline-dummy-not-a-credential',
-                GITHUB_OUTPUT: output, FIXTURE_ARGS: argsFile, FIXTURE_EXIT: String(code) }, stdio: 'pipe'
+                GITHUB_OUTPUT: output, RUNNER_TEMP: runnerTemp,
+                FIXTURE_ARGS: argsFile, FIXTURE_EXIT: String(code) }, stdio: 'pipe'
             }).toString();
             assert.equal(code, 0);
           } catch (error) {
@@ -535,6 +541,8 @@ async function run() {
           const args = fs.readFileSync(argsFile, 'utf8').trim().split('\n');
           assert.equal(args[args.indexOf('-C') + 1], clone);
           assert.equal(args[args.indexOf('--add-dir') + 1], clone);
+          assert.equal(args[args.indexOf('--plugin-dir') + 1], plugin);
+          assert(args.includes('hve-squad:squad-federation-coordinator'));
         }
       });
     }
