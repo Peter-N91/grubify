@@ -133,7 +133,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/squad-helper"
-          cp scripts/squad-watch/{policy,handoff,diagnostics}.cjs "$RUNNER_TEMP/squad-helper/"
+          cp scripts/squad-watch/{policy,pipeline,runtime,handoff,diagnostics}.cjs "$RUNNER_TEMP/squad-helper/"
           node scripts/squad-watch/handoff.cjs prompt
       - name: Recheck authorization and staleness after tool installation, immediately before model work
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0

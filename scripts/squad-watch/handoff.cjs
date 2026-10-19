@@ -48,6 +48,7 @@ function prompt(request) {
     'the request file. Changes outside consumer scope are rejected, not silently dropped.',
     '',
     ...p.watchAuditContract(request),
+    ...require('./pipeline.cjs').prompt(request),
     '',
     'UNATTENDED GATES: no discovery offer or ask-user wait. Intake validates issue',
     'data; stage transitions proceed only on artifact evidence and roster dispatch.',
@@ -88,7 +89,10 @@ function stage(request, cfg, destination) {
   const patch = p.git(['diff', '--cached', '--binary', '--no-renames', '--no-ext-diff', '--no-textconv']);
   p.check(patch.length <= cfg.maximumPatchBytes, 'Patch exceeds size bound');
   p.sanitized(p.text(patch));
-  p.audit(request);
+  const audit = p.audit(request);
+  const dispatch = require('./pipeline.cjs').validateDispatch(
+    require('./runtime.cjs').readProof(), request, audit.pipeline, origin.runAttempt);
+  require('./pipeline.cjs').sourceGate(request, audit.pipeline, changes);
   const manifest = {
     schemaVersion: 1,
     ...origin,
@@ -98,7 +102,8 @@ function stage(request, cfg, destination) {
     subSquad: request.subSquad,
     patchSha256: p.digest(patch),
     files: changes.map(({ path: filename, status, mode, bytes }) =>
-      ({ path: filename, status, mode, sha256: bytes === null ? null : p.digest(bytes) }))
+      ({ path: filename, status, mode, sha256: bytes === null ? null : p.digest(bytes) })),
+    dispatch
   };
   fs.mkdirSync(destination, { recursive: true });
   fs.writeFileSync(path.join(destination, 'squad-watch.patch'), patch);

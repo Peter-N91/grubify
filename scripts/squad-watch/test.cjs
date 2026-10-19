@@ -11,10 +11,14 @@ const prepare = require('./prepare.cjs');
 const handoff = require('./handoff.cjs');
 const diagnostics = require('./diagnostics.cjs');
 const apply = require('./apply.cjs');
+const pipeline = require('./pipeline.cjs');
+const runtime = require('./runtime.cjs');
+const { pipelineFixture, consumptionFixture, consumptionBlock } = require('./test-fixtures.cjs');
 const { verifyInputs } = require('./check-apm.cjs');
 const original = process.cwd();
 const cfg = p.config();
-const directory = path.join(original, '.watch-validation', `contracts-${process.platform}-${process.pid}`);
+fs.mkdirSync(path.join(original, '.watch-validation'), { recursive: true });
+const directory = fs.mkdtempSync(path.join(original, '.watch-validation', `contracts-${process.platform}-${process.pid}-`));
 const clone = path.join(directory, 'checkout');
 let passed = 0;
 
@@ -120,12 +124,9 @@ function fixtures(request, options = {}) {
   write(root + 'decisions.md', 'Synthetic test decisions\n## Blocking findings\nNo live execution; @someone <script> ![link](unsafe)\n');
   write(root + 'history/autopilot-run-offline-fixture.md', 'Synthetic autopilot history\n');
   write(root + 'history/Squad Implementor.md', '# Synthetic per-role history — no real dispatch\n\n' +
-    '#### Consumption\n```json\n' + JSON.stringify({
-      model: cfg.model, model_source: 'agent-pinned', priced_as: cfg.model, model_tier: 'standard',
-      internal_turns: 0, input_tokens: 0, cached_tokens: 0, cache_write_tokens: 0, output_tokens: 0,
-      basis: 'Offline synthetic fixture, not live consumption or dispatch evidence'
-    }, null, 2) + '\n```\n');
+    consumptionBlock());
   if (options.noState) fs.unlinkSync(root + 'state.json');
+  pipelineFixture(request, write);
 }
 
 function requestEnvironment(request, current = request.runAttempt, handoffAttempt = current) {
@@ -196,7 +197,264 @@ async function run() {
   process.env.REQUEST_DIR = path.join(directory, 'request');
   process.env.HANDOFF_DIR = path.join(directory, 'handoff');
   process.env.RESULT_DIR = path.join(directory, 'result');
+  process.env.RUNNER_TEMP = path.join(directory, 'runner');
   requestEnvironment(request);
+
+  await test('every RPI role needs all ten consumption fields, not three empty strings', () => {
+    fixtures(request);
+    const { root, journal } = pipelineFixture(request, write);
+    const read = filename => fs.readFileSync(root + filename, 'utf8');
+    for (const entry of journal.stages) {
+      const history = read(entry.history);
+      const prefix = history.split('#### Consumption')[0];
+      for (const field of Object.keys(consumptionFixture())) {
+        const block = consumptionFixture();
+        delete block[field];
+        write(root + entry.history, prefix + consumptionBlock('#### Consumption', block));
+        assert.throws(() => pipeline.validate(request, read), /per-stage consumption/, `${entry.stage}: ${field}`);
+      }
+      write(root + entry.history, prefix + consumptionBlock('#### Consumption',
+        { model: '', model_source: '', basis: '' }));
+      assert.throws(() => pipeline.validate(request, read), /per-stage consumption/);
+      write(root + entry.history, history);
+    }
+  });
+  await test('role and Scribe consumption numbers must be bare finite nonnegative values', () => {
+    fixtures(request);
+    const { root } = pipelineFixture(request, write);
+    const read = filename => fs.readFileSync(root + filename, 'utf8');
+    for (const [filename, heading] of [
+      ['history/Squad Researcher.md', '#### Consumption'],
+      ['history/Squad Scribe.md', '#### Consumption — Orchestration']
+    ]) {
+      const history = read(filename);
+      const prefix = history.split('#### Consumption')[0];
+      for (const field of ['internal_turns', 'input_tokens', 'cached_tokens', 'cache_write_tokens', 'output_tokens']) {
+        for (const value of [null, '0', '~8,400 (estimated)', true, -1, [], {}]) {
+          write(root + filename, prefix + consumptionBlock(heading, { ...consumptionFixture(), [field]: value }));
+          assert.throws(() => pipeline.validate(request, read), /consumption evidence/, `${filename}: ${field}`);
+        }
+        write(root + filename, prefix + consumptionBlock(heading)
+          .replace(`"${field}": 0`, `"${field}": 1e400`));
+        assert.throws(() => pipeline.validate(request, read), /consumption evidence/);
+      }
+      write(root + filename, prefix + consumptionBlock(heading, { ...consumptionFixture(), internal_turns: 0.5 }));
+      assert.throws(() => pipeline.validate(request, read), /consumption evidence/);
+      write(root + filename, history);
+    }
+  });
+  await test('required consumption strings are substantive and contract enums are preserved', () => {
+    fixtures(request);
+    const { root } = pipelineFixture(request, write);
+    const read = filename => fs.readFileSync(root + filename, 'utf8');
+    const filename = 'history/Squad Lead.md';
+    const prefix = read(filename).split('#### Consumption')[0];
+    for (const field of ['model', 'model_source', 'priced_as', 'model_tier', 'basis']) {
+      for (const value of ['', ' \t ', null, 0, {}]) {
+        write(root + filename, prefix + consumptionBlock('#### Consumption', { ...consumptionFixture(), [field]: value }));
+        assert.throws(() => pipeline.validate(request, read), /per-stage consumption/, field);
+      }
+    }
+    for (const [field, value] of [['model_source', 'guessed'], ['model_tier', 'standard'],
+      ['basis', 'estimated, tier-default']]) {
+      write(root + filename, prefix + consumptionBlock('#### Consumption', { ...consumptionFixture(), [field]: value }));
+      assert.throws(() => pipeline.validate(request, read), /per-stage consumption/, field);
+    }
+  });
+  await test('ledger-readable consumption has a closed ordered schema and one field per line', () => {
+    fixtures(request);
+    const { root } = pipelineFixture(request, write);
+    const read = filename => fs.readFileSync(root + filename, 'utf8');
+    const filename = 'history/Squad Implementor.md';
+    const prefix = read(filename).split('#### Consumption')[0];
+    const valid = consumptionFixture();
+    const reordered = { model_source: valid.model_source, model: valid.model, ...valid };
+    for (const block of [{ ...valid, turn: 1 }, { ...valid, est_cost_usd: 0 }, reordered, [], null]) {
+      write(root + filename, prefix + consumptionBlock('#### Consumption', block));
+      assert.throws(() => pipeline.validate(request, read), /per-stage consumption/);
+    }
+    for (const block of [
+      consumptionBlock().replace('"model": "unknown",', '"model": "unknown",\n  "model": "unknown",'),
+      consumptionBlock().replace(JSON.stringify(valid, null, 2), JSON.stringify(valid)),
+      consumptionBlock().replace('"input_tokens": 0', '"input_tokens": NaN')
+    ]) {
+      write(root + filename, prefix + block);
+      assert.throws(() => pipeline.validate(request, read), /per-stage consumption/);
+    }
+  });
+  await test('consumption headings and JSON fences must match the exact role or orchestration container', () => {
+    fixtures(request);
+    const { root } = pipelineFixture(request, write);
+    const read = filename => fs.readFileSync(root + filename, 'utf8');
+    for (const [filename, heading, wrongRole] of [
+      ['history/Squad Reviewer.md', '#### Consumption', '#### Consumption — Orchestration'],
+      ['history/Squad Scribe.md', '#### Consumption — Orchestration', '#### Consumption']
+    ]) {
+      const history = read(filename);
+      const prefix = history.split('#### Consumption')[0];
+      for (const block of [
+        consumptionBlock('', consumptionFixture()),
+        consumptionBlock('### Consumption'),
+        consumptionBlock('#### Consumption Block'),
+        consumptionBlock('#### Consumption — Research'),
+        consumptionBlock('#### Consumption — Orchestration (Turn 1)'),
+        consumptionBlock('#### Consumption - Orchestration'),
+        consumptionBlock(heading + ' suffix'),
+        consumptionBlock(wrongRole),
+        consumptionBlock(heading).replace('```json', '```yaml'),
+        consumptionBlock(heading).replaceAll('```', '`'),
+        `${heading}\n\n| Synthetic consumption | 0 |\n`,
+        `${heading}\n\nUnrelated prose\n\n${consumptionBlock().split('\n\n')[1]}`
+      ]) {
+        write(root + filename, prefix + block);
+        assert.throws(() => pipeline.validate(request, read), /consumption evidence/, filename);
+      }
+      write(root + filename, history);
+    }
+  });
+  await test('unknown unresolved and observed model schemas accept LF CRLF zero and fractional tokens', () => {
+    fixtures(request);
+    const { root, journal } = pipelineFixture(request, write);
+    const read = filename => fs.readFileSync(root + filename, 'utf8');
+    assert.equal(pipeline.validate(request, read).status, 'complete');
+    const block = { ...consumptionFixture(), model: cfg.model, model_source: 'session-inherited',
+      priced_as: cfg.model, internal_turns: 1, input_tokens: 0.5, basis: 'estimated' };
+    const entry = journal.stages[0];
+    write(root + entry.history, read(entry.history).split('#### Consumption')[0] +
+      consumptionBlock('#### Consumption', block));
+    for (const filename of [...journal.stages.map(entry => entry.history), 'history/Squad Scribe.md']) {
+      write(root + filename, read(filename).replace(/\n/g, '\r\n'));
+    }
+    assert.equal(pipeline.validate(request, read).status, 'complete');
+  });
+  await test('issue handoff rejects prose-only Scribe history and incomplete role consumption', () => {
+    fixtures(request);
+    const root = `.copilot-tracking/squad/members/${request.subSquad}/`;
+    write(root + 'history/Squad Scribe.md', 'Synthetic Scribe handoffs only; not an actual Squad or model run.\n');
+    assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR), /Scribe orchestration consumption/);
+    p.git(['read-tree', 'HEAD']);
+    pipelineFixture(request, write);
+    write(root + 'history/Squad Researcher.md',
+      'Synthetic Research artifact research/pipeline-fixture.txt\n' +
+      consumptionBlock('#### Consumption', { model: '', model_source: '', basis: '' }));
+    assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR), /per-stage consumption/);
+  });
+  await test('readable history consumption does not impose ledger total reconciliation', () => {
+    fixtures(request);
+    const root = `.copilot-tracking/squad/members/${request.subSquad}/`;
+    write(root + 'consumption.md',
+      '# Synthetic ledger with deliberately inconsistent totals — not billed\n\n' +
+      '| Role | Est. Cost (USD) |\n|------|-----------------|\n| Research | 0.0000 |\n| Run total | 999.0000 |\n');
+    handoff.stage(request, cfg, process.env.HANDOFF_DIR);
+    clean();
+    assert.equal(apply.validateArtifact(request, cfg, process.env.HANDOFF_DIR).audit.pipeline.status, 'complete');
+  });
+  await test('pipeline journal alone cannot bypass missing runtime dispatch', () => {
+    fixtures(request);
+    fs.unlinkSync(path.join(process.env.RUNNER_TEMP, 'squad-runtime', 'dispatch.json'));
+    assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR));
+  });
+  await test('one-role generation and missing domain artifacts no longer count as full RPI', () => {
+    fixtures(request);
+    const root = `.copilot-tracking/squad/members/${request.subSquad}/`;
+    fs.unlinkSync(root + 'plans/pipeline-fixture.txt');
+    assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR));
+    p.git(['read-tree', 'HEAD']);
+    fixtures(request);
+    const journal = JSON.parse(fs.readFileSync(root + 'pipeline.json'));
+    journal.stages = journal.stages.slice(2, 3);
+    write(root + 'pipeline.json', JSON.stringify(journal));
+    assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR), /Incomplete RPI/);
+  });
+  await test('native observer rejects fabricated display names, failures, cancellation and overlapping Scribe', () => {
+    const { journal } = pipelineFixture(request, write);
+    const watcher = runtime.observer(request);
+    watcher.event({ type: 'subagent.started', data: { toolCallId: '1', agentName: 'general-purpose', agentDisplayName: 'Squad Researcher' } });
+    watcher.event({ type: 'subagent.completed', data: { toolCallId: '1' } });
+    assert.throws(() => watcher.finish(), /absent/);
+    for (const type of ['subagent.failed', 'session.error', 'abort']) {
+      assert.throws(() => runtime.observer(request).event({ type }), /failed/);
+    }
+    const overlapping = runtime.observer(request);
+    overlapping.event({ type: 'subagent.started', data: { toolCallId: '1', agentName: 'squad-scribe' } });
+    assert.throws(() => overlapping.event({ type: 'subagent.started',
+      data: { toolCallId: '2', agentName: 'squad-lead' } }), /Concurrent Scribe/);
+    const cancelled = runtime.observer(request);
+    cancelled.event({ type: 'subagent.started', data: { toolCallId: '1', agentName: 'squad-scribe' } });
+    assert.throws(() => cancelled.event({ type: 'subagent.completed',
+      data: { toolCallId: '1', cancelled: true } }), /cancelled/);
+    const proof = runtime.readProof();
+    proof.calls = proof.calls.filter(call => call.agent !== 'Squad Lead');
+    assert.throws(() => pipeline.validateDispatch(proof, request, journal, '1'), /RPI role dispatch/);
+  });
+  await test('trusted collector persists only allowlisted lifecycle metadata, never raw prose', async () => {
+    const { events } = pipelineFixture(request, write);
+    events.splice(1, 0, { type: 'assistant.message', data: { content: 'PRIVATE RAW PROSE' } });
+    const filename = path.join(directory, 'native-events.jsonl');
+    const output = path.join(directory, 'collected.json');
+    write(filename, events.map(event => JSON.stringify(event)).join('\n'));
+    const proof = await runtime.collect(filename, request, output);
+    assert.equal(proof.calls.length, 9);
+    assert(!fs.readFileSync(output, 'utf8').includes('PRIVATE RAW PROSE'));
+    assert(!fs.readFileSync(output, 'utf8').includes('toolCallId'));
+  });
+  await test('independent apply rejects stage evidence without the actual ordered runtime proof', () => {
+    fixtures(request);
+    handoff.stage(request, cfg, process.env.HANDOFF_DIR);
+    clean();
+    const filename = path.join(process.env.HANDOFF_DIR, 'handoff.json');
+    const manifest = JSON.parse(fs.readFileSync(filename));
+    delete manifest.dispatch;
+    write(filename, JSON.stringify(manifest));
+    assert.throws(() => apply.validateArtifact(request, cfg, process.env.HANDOFF_DIR), /runtime dispatch/);
+  });
+  await test('real blocked prefix is explicit and cannot authorize premature source implementation', () => {
+    fixtures(request);
+    const { journal, root } = pipelineFixture(request, write);
+    journal.status = 'blocked';
+    journal.blockingReason = 'Synthetic Risk Stop; implementation must not run';
+    journal.stages = journal.stages.slice(0, 1);
+    write(root + 'pipeline.json', JSON.stringify(journal));
+    const proof = runtime.readProof();
+    proof.calls = proof.calls.slice(0, 3);
+    write(path.join(process.env.RUNNER_TEMP, 'squad-runtime', 'dispatch.json'), JSON.stringify(proof));
+    assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR), /completed Implement/);
+    p.git(['read-tree', 'HEAD']);
+    fs.unlinkSync('GrubifyApi/watch-contract-fixture.txt');
+    handoff.stage(request, cfg, process.env.HANDOFF_DIR);
+    clean();
+    assert.equal(apply.validateArtifact(request, cfg, process.env.HANDOFF_DIR).audit.pipeline.status, 'blocked');
+  });
+  await test('runtime assembly validates required roles and adapts only ephemeral identities/models/skills', () => {
+    const input = path.join(directory, 'bootstrap-input');
+    fs.mkdirSync(input, { recursive: true });
+    process.chdir(input);
+    try {
+      const roles = [['Squad Scribe', 'squad-scribe'], ['RPI Researcher', 'rpi-researcher'],
+        ...pipeline.stages.map(row => [row[1], row[2]])];
+      for (const [name, id] of roles) {
+        write(`.github/agents/${id}.agent.md`, `---\nname: ${name}\nmodel: Claude Sonnet 5 (copilot)\nagents:\n  - RPI Researcher\n  - Missing Optional Role\n---\nFixture\n`);
+      }
+      write('.github/agents/optional.agent.md', '---\ndescription: Nameless optional fixture\nagents:\n  - Missing Optional Role\n---\nFixture\n');
+      for (const skill of ['squad', 'rpi-research', 'rpi-plan', 'rpi-implement', 'rpi-review', 'code-review']) {
+        write(`.agents/skills/${skill}/SKILL.md`, 'Synthetic skill fixture\n');
+      }
+      write('scripts/squad-watch/runtime-plugin.json',
+        fs.readFileSync(path.join(original, 'scripts', 'squad-watch', 'runtime-plugin.json')));
+      const source = fs.readFileSync('.github/agents/squad-researcher.agent.md');
+      runtime.assemble('runtime');
+      const adapted = fs.readFileSync('runtime/agents/squad/squad-researcher.agent.md', 'utf8');
+      assert(adapted.includes('model: claude-sonnet-5'));
+      assert(adapted.includes('  - hve-squad:rpi-researcher'));
+      assert(!adapted.includes('Missing Optional Role'));
+      assert(fs.readFileSync('runtime/agents/squad/optional.agent.md', 'utf8').includes('agents: []'));
+      assert(fs.readFileSync('.github/agents/squad-researcher.agent.md').equals(source));
+      const manifest = JSON.parse(fs.readFileSync('runtime/plugin.json'));
+      assert(manifest.skills.includes('skills/rpi-research/'));
+      fs.unlinkSync('.github/agents/squad-implementor.agent.md');
+      assert.throws(() => runtime.assemble('missing-role-runtime'), /not deployed/);
+    } finally { process.chdir(clone); }
+  });
 
   await test('approved inputs guard frozen ref drift immediately', () => {
     const manifest = fs.readFileSync(path.join(original, 'apm.yml'));
@@ -517,15 +775,29 @@ async function run() {
         const argsFile = path.join(clone, '.watch-run', 'copilot-args');
         const runnerTemp = path.join(clone, '.watch-run', 'runner-temp');
         const plugin = path.join(runnerTemp, 'squad-tools', 'hve-squad-runtime');
+        const helper = path.join(runnerTemp, 'squad-runtime', 'helper');
         write(path.join(plugin, 'plugin.json'), '{}');
+        for (const name of ['runtime', 'pipeline', 'policy']) {
+          write(path.join(helper, name + '.cjs'),
+            fs.readFileSync(path.join(original, 'scripts', 'squad-watch', name + '.cjs')));
+        }
+        const nativeEvents = path.join(clone, '.watch-run', 'native-events.jsonl');
+        const { events } = pipelineFixture(request, write);
+        write(nativeEvents, events.map(event => JSON.stringify(event)).join('\n'));
         write('.watch-run/request.json', JSON.stringify(request));
         write('.watch-run/prompt.txt', 'Offline fixture, never a real model request\n');
         const wrapper = path.join(clone, '.watch-run', 'runtime-fixture.sh');
         write(wrapper, fs.readFileSync(path.join(original, 'scripts', 'squad-watch', script), 'utf8')
           .replace(/\r\n/g, '\n'));
-        write(path.join(bin, 'copilot'), '#!/bin/bash\nprintf \"%s\\\\n\" \"$@\" > \"$FIXTURE_ARGS\"\nprintf \"private fixture text must not escape\\\\n\" >&2\nexit \"$FIXTURE_EXIT\"\n');
+        write(path.join(bin, 'copilot'), '#!/bin/bash\nprintf \"%s\\\\n\" \"$@\" > \"$FIXTURE_ARGS\"\n' +
+          'while (( $# )); do if [[ "$1" == "--session-id" ]]; then session="$2"; shift; fi; shift; done\n' +
+          'mkdir -p "$COPILOT_HOME/session-state/$session"\n' +
+          'cp "$FIXTURE_NATIVE_EVENTS" "$COPILOT_HOME/session-state/$session/events.jsonl"\n' +
+          'printf \"private fixture text must not escape\\\\n\" >&2\nexit \"$FIXTURE_EXIT\"\n');
         fs.chmodSync(path.join(bin, 'copilot'), 0o755);
         for (const code of [0, 7, 124]) {
+          fs.rmSync(path.join(runnerTemp, 'squad-runtime', 'copilot-home'), { recursive: true, force: true });
+          fs.rmSync(path.join(runnerTemp, 'squad-runtime', 'dispatch.json'), { force: true });
           write(output, '');
           write(argsFile, '');
           let stdout;
@@ -534,6 +806,8 @@ async function run() {
               env: { PATH: `${bin}:${path.dirname(process.execPath)}:/usr/bin:/bin`,
                 HOME: path.join(clone, '.watch-run'), COPILOT_GITHUB_TOKEN: 'offline-dummy-not-a-credential',
                 GITHUB_OUTPUT: output, RUNNER_TEMP: runnerTemp,
+                GITHUB_RUN_ATTEMPT: '1', EXPECTED_REQUEST_SHA256: process.env.EXPECTED_REQUEST_SHA256,
+                FIXTURE_NATIVE_EVENTS: nativeEvents,
                 FIXTURE_ARGS: argsFile, FIXTURE_EXIT: String(code) }, stdio: 'pipe'
             }).toString();
             assert.equal(code, 0);

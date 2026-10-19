@@ -7,9 +7,11 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const p = require('./policy.cjs');
 const review = require('./review.cjs');
+const { pipelineFixture, consumptionBlock } = require('./test-fixtures.cjs');
 const original = process.cwd();
 const cfg = p.config();
-const directory = path.join(original, '.watch-validation', `review-contracts-${process.platform}-${process.pid}`);
+fs.mkdirSync(path.join(original, '.watch-validation'), { recursive: true });
+const directory = fs.mkdtempSync(path.join(original, '.watch-validation', `review-contracts-${process.platform}-${process.pid}-`));
 const clone = path.join(directory, 'checkout');
 let passed = 0;
 let baseSha;
@@ -127,6 +129,7 @@ function evidence(request, changes = {}) {
   write(root + 'history/Squad Reviewer.md', 'Synthetic tester history, artifact reviews/source-review.txt\n');
   write(root + 'reviews/source-review.txt', 'Synthetic domain evidence referencing GrubifyApi/Reviewed.cs:1\n');
   write(root + 'review.json', JSON.stringify(report));
+  pipelineFixture(request, write);
   return { root, report };
 }
 
@@ -156,7 +159,72 @@ async function run() {
   process.env.REQUEST_DIR = path.join(clone, '.watch-run');
   process.env.SOURCE_RESULT_DIR = path.join(directory, 'source');
   process.env.REVIEW_RESULT_DIR = path.join(directory, 'review-result');
+  process.env.RUNNER_TEMP = path.join(directory, 'runner');
   process.env.GITHUB_RUN_ID = '456';
+  for (const [history, malformed, expected] of [
+    ['history/Squad Reviewer.md', 'Synthetic Review artifact reviews/pipeline-fixture.txt\n' +
+      consumptionBlock('#### Consumption', { model: '', model_source: '', basis: '' }), /per-stage consumption/],
+    ['history/Squad Scribe.md', 'Synthetic Scribe handoffs only; not an actual Squad or model run.\n' +
+      consumptionBlock('#### Consumption — Orchestration (Turn 1)'), /Scribe orchestration consumption/]
+  ]) {
+    await test(`review staging requires readable consumption in ${history}`, async () => {
+      const api = fixture(false);
+      const request = await prepare(api);
+      const { root } = evidence(request);
+      write(root + history, malformed);
+      assert.throws(() => staged(api), expected);
+      assert.equal(api.writes.length, 0);
+    });
+    await test(`review publication independently validates consumption in ${history}`, async () => {
+      const api = fixture(false);
+      const request = await prepare(api);
+      const { root } = evidence(request);
+      staged(api);
+      clean();
+      const filename = path.join(process.env.REVIEW_RESULT_DIR, 'review.json');
+      const result = JSON.parse(fs.readFileSync(filename));
+      result.audit.find(file => file.path === root + history).content = malformed;
+      const bytes = JSON.stringify(result);
+      write(filename, bytes);
+      process.env.EXPECTED_REVIEW_SHA256 = p.digest(bytes);
+      await assert.rejects(review.publish(api), expected);
+      assert.equal(api.writes.length, 0);
+    });
+  }
+  await test('review-only tester evidence cannot skip Research Plan Implement preparation', async () => {
+    const api = fixture(false);
+    const request = await prepare(api);
+    const { root } = evidence(request);
+    fs.unlinkSync(root + 'changes/pipeline-fixture.txt');
+    assert.throws(() => staged(api));
+    clean();
+    evidence(request);
+    fs.unlinkSync(path.join(process.env.RUNNER_TEMP, 'squad-runtime', 'dispatch.json'));
+    assert.throws(() => staged(api));
+  });
+  await test('independent review publication refuses missing runtime lifecycle evidence', async () => {
+    const api = fixture(false);
+    const request = await prepare(api);
+    evidence(request);
+    staged(api);
+    clean();
+    const filename = path.join(process.env.REVIEW_RESULT_DIR, 'review.json');
+    const result = JSON.parse(fs.readFileSync(filename));
+    delete result.dispatch;
+    const bytes = JSON.stringify(result);
+    write(filename, bytes);
+    process.env.EXPECTED_REVIEW_SHA256 = p.digest(bytes);
+    await assert.rejects(review.publish(api), /runtime dispatch/);
+    assert.equal(api.writes.length, 0);
+  });
+  await test('review preparation artifacts must examine source rather than audit-only boilerplate', async () => {
+    const api = fixture(false);
+    const request = await prepare(api);
+    const { root } = evidence(request);
+    write(root + 'changes/pipeline-fixture.txt', 'Long synthetic but source-free narrative must not count as completed review preparation.\n');
+    assert.throws(() => staged(api), /actual source evidence/);
+    assert.equal(api.writes.length, 0);
+  });
   await test('ignored real review audit stages and independently reconstructs before publication', async () => {
     const api = fixture();
     const request = await prepare(api);
