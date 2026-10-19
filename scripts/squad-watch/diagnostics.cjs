@@ -40,7 +40,7 @@ function report(sub, modelStep, handoffStep, exitCode) {
     classification: model !== 'success' ? 'coordinator-not-successful' :
       handoff === 'success' ? 'validated-handoff' :
         missing ? 'incomplete-audit' : 'handoff-rejected',
-    auditPresence,
+    auditPresence, ...require('./progress.cjs').diagnostics(sub),
     limitation: 'Presence is not dispatch proof. Credit exhaustion and past model behavior are unknown; raw output is not published.'
   };
 }

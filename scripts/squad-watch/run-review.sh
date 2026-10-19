@@ -6,6 +6,7 @@ CREDITS="$(node -e "process.stdout.write(String(require('./.watch-run/request.js
 [[ "$MODEL" == "claude-sonnet-5" && "$CREDITS" == "90" ]]
 unset GH_TOKEN GITHUB_TOKEN
 readonly REPO_ROOT="$PWD"
+export HVE_WATCH_REPO_ROOT="$REPO_ROOT"
 readonly RUNTIME_PLUGIN="$RUNNER_TEMP/squad-tools/hve-squad-runtime"
 test -f "$RUNTIME_PLUGIN/plugin.json"
 readonly SESSION_ID="$(node -e "process.stdout.write(require('node:crypto').randomUUID())")"
@@ -13,6 +14,7 @@ export COPILOT_HOME="$RUNNER_TEMP/squad-runtime/copilot-home"
 test ! -e "$COPILOT_HOME"
 test ! -e "$RUNNER_TEMP/squad-runtime/dispatch.json"
 mkdir -p "$COPILOT_HOME"
+node "$RUNNER_TEMP/squad-runtime/helper/completion-gate.cjs" init "$SESSION_ID"
 set +e
 timeout --signal=TERM --kill-after=30s 30m \
   copilot --no-auto-update \

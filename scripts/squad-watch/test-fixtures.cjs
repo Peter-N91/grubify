@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { stages } = require('./pipeline.cjs');
 const { observer } = require('./runtime.cjs');
+const completion = require('./completion-gate.cjs');
 
 function consumptionFixture() {
   return {
@@ -55,4 +56,32 @@ function pipelineFixture(request, write) {
   return { journal, events, root };
 }
 
-module.exports = { pipelineFixture, consumptionFixture, consumptionBlock };
+function completionFixture(request, write, action) {
+  const previous = { RUNNER_TEMP: process.env.RUNNER_TEMP,
+    EXPECTED_REQUEST_SHA256: process.env.EXPECTED_REQUEST_SHA256 };
+  const runner = path.join(previous.RUNNER_TEMP, 'completion-' + require('node:crypto').randomUUID());
+  process.env.RUNNER_TEMP = runner;
+  const bytes = JSON.stringify(request);
+  process.env.EXPECTED_REQUEST_SHA256 = require('./policy.cjs').digest(bytes);
+  write('.watch-run/request.json', bytes);
+  const sessionId = require('node:crypto').randomUUID();
+  const home = path.join(runner, 'squad-runtime', 'copilot-home');
+  fs.mkdirSync(home, { recursive: true });
+  completion.initialize(sessionId);
+  const filename = path.join(home, 'session-state', sessionId, 'events.jsonl');
+  const input = { sessionId, cwd: process.cwd(), timestamp: 1,
+    stopReason: 'end_turn', stop_hook_active: false, transcriptPath: 'NEVER READ THIS INPUT' };
+  const events = names => names.flatMap((agentName, index) => [
+    { type: 'subagent.started', data: { toolCallId: String(index), agentName } },
+    { type: 'subagent.completed', data: { toolCallId: String(index) } }
+  ]);
+  try {
+    return action({ input, filename, home, events,
+      native: value => write(filename, value.map(event => JSON.stringify(event)).join('\n')) });
+  } finally {
+    Object.assign(process.env, previous);
+    fs.rmSync(runner, { recursive: true, force: true });
+  }
+}
+
+module.exports = { pipelineFixture, consumptionFixture, consumptionBlock, completionFixture };

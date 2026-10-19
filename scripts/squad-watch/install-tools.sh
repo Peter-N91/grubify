@@ -25,8 +25,10 @@ node scripts/squad-watch/runtime.cjs assemble "$RUNTIME_PLUGIN"
 test -f "$RUNTIME_PLUGIN/agents/squad/squad-federation-coordinator.agent.md"
 test -f "$RUNTIME_PLUGIN/agents/squad/squad-scribe.agent.md"
 test -f "$RUNTIME_PLUGIN/skills/squad/SKILL.md"
+test -f "$RUNTIME_PLUGIN/hooks/hooks.json"
+test -f "$RUNTIME_PLUGIN/scripts/completion-gate.cjs"
 mkdir -p "$RUNNER_TEMP/squad-runtime/helper"
-cp scripts/squad-watch/{policy,pipeline,runtime}.cjs "$RUNNER_TEMP/squad-runtime/helper/"
+cp scripts/squad-watch/{policy,pipeline,runtime,progress,completion-gate}.cjs "$RUNNER_TEMP/squad-runtime/helper/"
 
 npm install --global --ignore-scripts "@github/copilot@1.0.98"
 copilot --no-auto-update version | grep -F '1.0.98'

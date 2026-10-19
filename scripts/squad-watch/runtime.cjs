@@ -2,7 +2,6 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const readline = require('node:readline');
 const p = require('./policy.cjs');
 const pipeline = require('./pipeline.cjs');
 
@@ -26,6 +25,12 @@ function assemble(destination) {
   }
   fs.mkdirSync(path.join(destination, 'agents', 'squad'), { recursive: true });
   fs.copyFileSync('scripts/squad-watch/runtime-plugin.json', path.join(destination, 'plugin.json'));
+  fs.mkdirSync(path.join(destination, 'scripts'), { recursive: true });
+  fs.mkdirSync(path.join(destination, 'hooks'), { recursive: true });
+  for (const name of ['policy', 'pipeline', 'runtime', 'progress', 'completion-gate']) {
+    fs.copyFileSync(`scripts/squad-watch/${name}.cjs`, path.join(destination, 'scripts', `${name}.cjs`));
+  }
+  fs.copyFileSync('scripts/squad-watch/runtime-hooks.json', path.join(destination, 'hooks', 'hooks.json'));
   const models = new Map([
     ['Claude Haiku 4.5 (copilot)', 'claude-haiku-4.5'],
     ['Claude Sonnet 5 (copilot)', 'claude-sonnet-5'],
@@ -104,20 +109,76 @@ function observer(request) {
       requestSha256: process.env.EXPECTED_REQUEST_SHA256,
       calls: calls.sort((a, b) => a.started - b.started) };
   }
-  return { event, finish };
+  return { event, finish, snapshot: () => ({ calls: [...calls], pending: pending.size }) };
+}
+
+// Shared read-only scanner also works while a session is still open. An invalid
+// stream may expose bounded counts for diagnostics, but never a usable proof.
+function regularPath(filename, maximum) {
+  const absolute = path.resolve(filename);
+  const { root } = path.parse(absolute);
+  const parts = path.relative(root, absolute).split(path.sep);
+  let current = root;
+  for (const [index, part] of parts.entries()) {
+    current = path.join(current, part);
+    let stat;
+    try { stat = fs.lstatSync(current); } catch (error) {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    }
+    p.check(!stat.isSymbolicLink(), 'Linked runtime path denied');
+    p.check(index === parts.length - 1 ? stat.isFile() && stat.size <= maximum :
+      stat.isDirectory(), 'Invalid runtime path');
+  }
+  return absolute;
+}
+
+function inspectEvents(filename, request) {
+  const watcher = observer(request);
+  let availability = 'invalid';
+  let descriptor;
+  try {
+    const file = regularPath(filename, 128 * 1024 * 1024);
+    if (!file) return { availability: 'missing', calls: [], pending: 0 };
+    descriptor = fs.openSync(file, 'r');
+    const decoder = new (require('node:string_decoder').StringDecoder)('utf8');
+    const buffer = Buffer.alloc(65536);
+    let remaining = '';
+    let total = 0;
+    let size;
+    while ((size = fs.readSync(descriptor, buffer, 0, buffer.length, null))) {
+      total += size;
+      p.check(total <= 128 * 1024 * 1024, 'Event stream bound exceeded');
+      remaining += decoder.write(buffer.subarray(0, size));
+      let end;
+      while ((end = remaining.indexOf('\n')) >= 0) {
+        const line = remaining.slice(0, end);
+        p.check(line.length <= 8 * 1024 * 1024, 'Event line bound exceeded');
+        if (line.trim()) watcher.event(JSON.parse(line));
+        remaining = remaining.slice(end + 1);
+      }
+      p.check(remaining.length <= 8 * 1024 * 1024, 'Event line bound exceeded');
+    }
+    remaining += decoder.end();
+    if (remaining.trim()) watcher.event(JSON.parse(remaining));
+    const snapshot = watcher.snapshot();
+    if (!snapshot.calls.length && snapshot.pending === 0) {
+      return { availability: 'incomplete', ...snapshot };
+    }
+    const proof = watcher.finish();
+    availability = 'valid';
+    return { availability, proof, ...watcher.snapshot() };
+  } catch {
+    return { availability, ...watcher.snapshot() };
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+  }
 }
 
 async function collect(filename, request, destination) {
-  const stat = fs.lstatSync(filename);
-  p.check(stat.isFile() && !stat.isSymbolicLink() && stat.size <= 128 * 1024 * 1024,
-    'Missing/oversized CLI session event stream');
-  const watcher = observer(request);
-  const lines = readline.createInterface({ input: fs.createReadStream(filename), crlfDelay: Infinity });
-  for await (const line of lines) {
-    p.check(line.length <= 8 * 1024 * 1024, 'Runtime event exceeds bound');
-    if (line.trim()) watcher.event(JSON.parse(line));
-  }
-  const proof = watcher.finish();
+  const inspected = inspectEvents(filename, request);
+  p.check(inspected.availability === 'valid', 'Missing/unsupported native dispatch telemetry');
+  const proof = inspected.proof;
   fs.writeFileSync(destination, JSON.stringify(proof, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
   return proof;
 }
@@ -140,4 +201,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { assemble, observer, collect, readProof };
+module.exports = { assemble, observer, collect, readProof, inspectEvents, regularPath };
