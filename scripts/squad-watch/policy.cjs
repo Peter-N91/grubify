@@ -476,7 +476,13 @@ function audit(request) {
   check(match, 'decisions.md must contain Blocking findings (write None if empty)');
   const findings = decisions.slice(match.index + match[0].length).split(/\n#{1,6}\s/)[0].trim();
   check(findings && findings.length <= 12000, 'Blocking findings must be explicit and bounded');
-  return { root, run, history, findings };
+  const pipeline = require('./pipeline.cjs').validate(request, filename => {
+    safePath(root + filename, config(), request.subSquad);
+    return readStaged(root + filename);
+  });
+  check(pipeline.status !== 'blocked' || findings.toLowerCase() !== 'none',
+    'Blocked RPI requires explicit Blocking findings');
+  return { root, run, history, findings, pipeline };
 }
 
 function regularFile(filename, maxBytes) {

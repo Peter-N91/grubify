@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/github/open-plugin-spec/main/schemas/plugin.schema.json",
   "name": "hve-squad",
   "version": "0.18.1",
-  "description": "Ephemeral Watch runtime assembled from integrity-checked APM assets.",
+  "description": "Ephemeral full-cast RPI Watch runtime adapted from integrity-checked APM assets.",
   "agents": [
     "agents/squad/"
   ],

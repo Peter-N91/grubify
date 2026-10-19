@@ -29,7 +29,9 @@ function validateArtifact(request, cfg, directory) {
     !p.git(['status', '--porcelain']).toString().trim(), 'Apply checkout must be a clean, exact base');
   if (manifest.status === 'no-change') {
     p.check(patch.length === 0 && manifest.files.length === 0, 'Invalid no-change artifact');
-    return { changes: [], audit: p.audit(request) };
+    const audit = p.audit(request);
+    require('./pipeline.cjs').validateDispatch(manifest.dispatch, request, audit.pipeline, manifest.runAttempt);
+    return { changes: [], audit };
   }
   p.check(manifest.status === 'changed' && patch.length > 0, 'Invalid artifact status');
   p.sanitized(p.text(patch));
@@ -49,7 +51,10 @@ function validateArtifact(request, cfg, directory) {
     ({ path: filename, status, mode, sha256: bytes === null ? null : p.digest(bytes) }));
   p.check(JSON.stringify(actual) === JSON.stringify(manifest.files), 'Patch/index manifest mismatch');
   p.check(changes.length > 0, 'Empty changed artifact');
-  return { changes, audit: p.audit(request) };
+  const audit = p.audit(request);
+  require('./pipeline.cjs').validateDispatch(manifest.dispatch, request, audit.pipeline, manifest.runAttempt);
+  require('./pipeline.cjs').sourceGate(request, audit.pipeline, changes);
+  return { changes, audit };
 }
 
 function body(request, evidence) {
@@ -60,7 +65,9 @@ function body(request, evidence) {
     'The trusted apply job adds `squad/review` to this draft and explicitly dispatches',
     'a separate pr-N Squad coordinator for bounded static source review. Bot-generated',
     'label events alone do not start that workflow. Its report is a comment, never approval.',
-    'That second session has its own 30-credit native soft allowance (not a hard/USD cap).', '',
+    'That second session has its own 90-credit native soft allowance (not a hard/USD cap).', '',
+    `RPI pipeline: **${evidence.pipeline.status}**; inspect \`${evidence.root}pipeline.json\`.`,
+    'Ordered cast dispatch and serialized Scribe handoffs were checked against runtime lifecycle events.', '',
     `Source: ${request.ref}; actor: ${request.actor}; event: ${request.eventId}.`,
     `Base: \`${request.baseSha}\`; model: \`${request.model}\`.`,
     `Native shared session soft cap: ${request.maxAiCredits} AI credits (may overshoot as responses return; NOT USD/tokens).`,
