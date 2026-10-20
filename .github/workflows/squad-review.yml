@@ -9,6 +9,11 @@ on:
         description: 'Open same-repo main-target PR with squad/review; human recovery may omit source fields'
         required: true
         type: string
+      max_ai_credits:
+        description: '30..90 AI-credit soft cap; blank=90. Exact unset opts into uncapped diagnostics (30-minute timeout). Automatic input MUST match generation'
+        required: false
+        default: ''
+        type: string
       source_run_id:
         description: 'Automatic linkage only: generation run ID'
         required: false

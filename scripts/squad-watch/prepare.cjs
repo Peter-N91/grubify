@@ -21,7 +21,7 @@ module.exports = async function prepare({ github, context, core }) {
     return;
   }
   const number = p.integer(manual ? context.payload.inputs?.issue_number : context.payload.issue?.number, 'issue number');
-  const cap = p.credits(manual ? context.payload.inputs?.max_ai_credits : '', cfg);
+  const budget = p.creditBudget(manual ? context.payload.inputs?.max_ai_credits : '', cfg, manual);
   const { data: repo } = await github.rest.repos.get(context.repo);
   p.check(repo.default_branch === cfg.defaultBranch, 'Default branch changed; review Watch configuration');
   const { data: branch } = await github.rest.repos.getBranch({ ...context.repo, branch: cfg.defaultBranch });
@@ -58,7 +58,7 @@ module.exports = async function prepare({ github, context, core }) {
     branch: workingBranch,
     issueHash: p.issueHash(issue),
     model: cfg.model,
-    maxAiCredits: cap,
+    ...budget,
     issueData: { number, title: issue.title, body: issue.body || '' }
   };
   fs.mkdirSync(process.env.REQUEST_DIR, { recursive: true });

@@ -21,11 +21,37 @@ function integer(value, name) {
   return number;
 }
 
-function credits(value, cfg) {
+function credits(value, cfg, allowUncapped = false) {
+  if (value === 'unset' && allowUncapped === true) return null;
   const cap = value === '' || value === undefined
     ? cfg.defaultAiCredits : integer(value, 'AI credit cap');
   check(cap >= 30 && cap <= cfg.maximumAiCredits, 'AI credit cap must be 30..configured maximum');
   return cap;
+}
+
+function creditBudget(value, cfg, allowUncapped = false) {
+  const maxAiCredits = credits(value, cfg, allowUncapped);
+  return { maxAiCredits, uncappedDiagnostic: maxAiCredits === null };
+}
+
+function creditInput(request, cfg = config()) {
+  check(typeof request.uncappedDiagnostic === 'boolean', 'Missing explicit AI credit mode');
+  if (request.uncappedDiagnostic) {
+    check(request.maxAiCredits === null, 'Uncapped diagnostic requires a null native ceiling');
+    check(request.source !== 'issue', 'Issue labels cannot authorize uncapped diagnostics');
+    return 'unset';
+  }
+  check(Number.isSafeInteger(request.maxAiCredits) &&
+    credits(String(request.maxAiCredits), cfg) === request.maxAiCredits,
+  'Invalid bounded AI credit cap');
+  return String(request.maxAiCredits);
+}
+
+function creditNotice(request) {
+  const input = creditInput(request);
+  return input === 'unset'
+    ? 'Uncapped diagnostic: no native AI-credit ceiling; 30-minute timeout still applies. Provider/account/organization quotas and HVE USD cost-ceiling gates remain unchanged.'
+    : `Native shared session soft cap: ${input} AI credits (may overshoot; NOT USD/tokens); 30-minute timeout still applies.`;
 }
 
 function watchAuditContract(request) {
@@ -160,12 +186,15 @@ async function revalidateCurrent({ github, context }) {
     request.subSquad === `issue-${request.issue}` && request.branch === `squad/issue-${request.issue}` &&
     request.ref === `${cfg.repository}#${request.issue}` && request.runId === String(context.runId) &&
     request.actor === context.actor && typeof request.triggeringActor === 'string' &&
-    request.model === cfg.model && credits(String(request.maxAiCredits), cfg) === request.maxAiCredits,
+    request.model === cfg.model,
   'Trusted request provenance/configuration mismatch');
   const manual = context.eventName === 'workflow_dispatch';
   check(request.source === (manual ? 'workflow_dispatch' : 'issue') &&
     (manual || (context.eventName === 'issues' && context.payload.action === 'labeled' &&
       context.payload.label?.name === cfg.issueLabel)), 'Invalid request source/event');
+  check(creditInput(request, cfg) === creditInput(creditBudget(
+    manual ? context.payload.inputs?.max_ai_credits : '', cfg, manual), cfg),
+  'Request AI credit mode/cap differs from original authorized event input');
   check(integer(manual ? context.payload.inputs?.issue_number : context.payload.issue?.number,
     'event issue') === request.issue, 'Request/event issue mismatch');
   check(await authorized(github, context.repo,
@@ -521,7 +550,8 @@ function escapeMarkdown(value) {
     .replace(/[\\`*_{}\[\]()#+.!|>@<&]/g, c => `\\${c}`);
 }
 
-module.exports = { check, config, integer, credits, watchAuditContract, digest, issueHash, authorized, validIssue,
+module.exports = { check, config, integer, credits, creditBudget, creditInput, creditNotice,
+  watchAuditContract, digest, issueHash, authorized, validIssue,
   branchExists, attempt, requestBytes, execution, revalidateCurrent, git, text, safePath, sanitized,
   auditTargets, workingFile, proposalPaths, stageProposal,
   changes, readStaged, baseAudit, memberBase, audit, regularFile, escapeMarkdown };

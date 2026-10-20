@@ -41,6 +41,7 @@ function context() {
   p.check(['issue', 'workflow_dispatch', 'pr'].includes(request.source) &&
     typeof request.runId === 'string' && /^[1-9][0-9]*$/.test(request.runId),
   'Unsupported completion request');
+  p.creditInput(request);
   return { ...value, request };
 }
 
@@ -154,10 +155,12 @@ function diagnostics(sub) {
   catch { bound = undefined; }
   const value = inspect(sub, bound);
   const facts = value.native.failures ? value.native : runtime.failureFacts().snapshot();
-  const cap = bound?.request.maxAiCredits;
   return { roleHistory: value.histories, pipeline: value.manifest,
     diagnosticContext: bound ? 'bound' : 'unavailable',
-    configuredSharedSessionCapAiCredits: Number.isInteger(cap) && cap >= 30 && cap <= 90 ? cap : null,
+    configuredCreditMode: !bound ? 'unavailable' :
+      bound.request.uncappedDiagnostic ? 'uncapped-diagnostic' : 'bounded',
+    configuredCreditPolicy: bound ? p.creditNotice(bound.request) : 'Diagnostic context unavailable; credit mode is unknown.',
+    configuredSharedSessionCapAiCredits: bound ? bound.request.maxAiCredits : null,
     native: { availability: value.native.availability, completed: value.counts,
       pending: value.native.pending, failures: facts.failures, errors: facts.errors,
       errorsTruncated: facts.errorsTruncated, aborts: facts.aborts, shutdowns: facts.shutdowns,

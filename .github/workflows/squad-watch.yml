@@ -14,7 +14,7 @@ on:
         required: true
         type: string
       max_ai_credits:
-        description: 'Native shared session soft cap, 30..90 AI credits; blank uses 90 (NOT USD/tokens)'
+        description: '30..90 AI-credit soft cap; blank=90. Exact unset removes native ceiling for generation AND review; each retains 30-minute timeout'
         required: false
         default: ''
         type: string
@@ -192,6 +192,7 @@ jobs:
       pr: ${{ steps.apply.outputs.pr }}
       result_sha256: ${{ steps.apply.outputs.result_sha256 }}
       result_artifact_id: ${{ steps.result-upload.outputs.artifact-id }}
+      review_max_ai_credits: ${{ steps.apply.outputs.review_max_ai_credits }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -255,18 +256,21 @@ jobs:
           PR: ${{ needs.apply.outputs.pr }}
           ARTIFACT_ID: ${{ needs.apply.outputs.result_artifact_id }}
           RESULT_SHA256: ${{ needs.apply.outputs.result_sha256 }}
+          MAX_AI_CREDITS: ${{ needs.apply.outputs.review_max_ai_credits }}
         with:
           script: |
-            const { PR, ARTIFACT_ID, RESULT_SHA256 } = process.env;
+            const { PR, ARTIFACT_ID, RESULT_SHA256, MAX_AI_CREDITS } = process.env;
             const link = `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${PR}`;
             if (![PR, ARTIFACT_ID].every(x => /^[1-9][0-9]*$/.test(x)) ||
-                !/^[0-9a-f]{64}$/.test(RESULT_SHA256)) throw new Error(`Invalid review linkage for ${link}`);
+                !/^[0-9a-f]{64}$/.test(RESULT_SHA256) ||
+                !/^(?:unset|[3-8][0-9]|90)$/.test(MAX_AI_CREDITS || '')) throw new Error(`Invalid review linkage for ${link}`);
             try {
               await github.rest.actions.createWorkflowDispatch({
                 ...context.repo, workflow_id: 'squad-review.yml', ref: 'main',
                 inputs: { pr_number: PR, source_run_id: String(context.runId),
                   source_attempt: process.env.GITHUB_RUN_ATTEMPT,
-                  result_artifact_id: ARTIFACT_ID, result_sha256: RESULT_SHA256 }
+                  result_artifact_id: ARTIFACT_ID, result_sha256: RESULT_SHA256,
+                  max_ai_credits: MAX_AI_CREDITS }
               });
             } catch {
               throw new Error(`Draft ${link} exists with squad/review, but second-Squad dispatch failed. Human recovery: dispatch Squad Review for this PR; do not rerun generation.`);
