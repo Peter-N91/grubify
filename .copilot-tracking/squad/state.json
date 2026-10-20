@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.3",
+  "updated": "2026-10-16T08:11:24Z",
+  "turn": 1,
+  "mode": "autopilot",
+  "subSquads": ["issue-4"],
+  "activeSubSquads": ["issue-4"],
+  "openEscalations": [],
+  "notify": { "channel": "in-chat", "enabled": false }
+}
