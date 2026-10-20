@@ -75,12 +75,21 @@ function completionFixture(request, write, action) {
     { type: 'subagent.started', data: { toolCallId: String(index), agentName } },
     { type: 'subagent.completed', data: { toolCallId: String(index) } }
   ]);
-  try {
-    return action({ input, filename, home, events,
-      native: value => write(filename, value.map(event => JSON.stringify(event)).join('\n')) });
-  } finally {
+  const cleanup = () => {
     Object.assign(process.env, previous);
     fs.rmSync(runner, { recursive: true, force: true });
+  };
+  let pending = false;
+  try {
+    const result = action({ input, filename, home, events,
+      native: value => write(filename, value.map(event => JSON.stringify(event)).join('\n')) });
+    if (result && typeof result.then === 'function') {
+      pending = true;
+      return Promise.resolve(result).finally(cleanup);
+    }
+    return result;
+  } finally {
+    if (!pending) cleanup();
   }
 }
 

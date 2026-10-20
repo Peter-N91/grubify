@@ -29,6 +29,11 @@ function write(filename, content) {
   fs.writeFileSync(filename, content);
 }
 
+function creditEvent(totalNanoAiu, status, type = 'session.usage_checkpoint') {
+  return { type, data: { totalNanoAiu, ...(type === 'session.shutdown' ? { shutdownType: 'error' } : {}),
+    ...(status === undefined ? {} : { accountingSnapshot: { totalNanoAiu, aiCreditsStatus: status } }) } };
+}
+
 function mock(request, options = {}) {
   const writes = [];
   const outputs = {};
@@ -650,6 +655,259 @@ async function run() {
     assert(!fs.readFileSync(output, 'utf8').includes('PRIVATE RAW PROSE'));
     assert(!fs.readFileSync(output, 'utf8').includes('toolCallId'));
   });
+  await test('failed live-pattern prefix retains typed failure and later cumulative shutdown without accepting proof', async () => {
+    await completionFixture(request, write, async ({ filename, native, events, input }) => {
+      native([...events(['hve-squad:squad-scribe', 'hve-squad:squad-scribe']),
+        { type: 'session.error', data: { errorType: 'quota', errorCode: 'session_quota_exceeded',
+          statusCode: 402, message: 'PRIVATE MESSAGE', stack: 'PRIVATE STACK', url: 'PRIVATE URL',
+          providerCallId: 'PRIVATE ID', providerErrorParam: 'PRIVATE PARAM' } },
+        creditEvent(7e9, 'partial'), creditEvent(9e9, 'partial', 'session.shutdown')]);
+      const report = diagnostics.report(request.subSquad, 'failure', 'skipped', '1');
+      assert.equal(report.diagnosticContext, 'bound');
+      assert.equal(report.configuredSharedSessionCapAiCredits, 90);
+      assert.equal(report.cliExitCode, 1);
+      assert.equal(report.exitCause, 'unknown');
+      assert.equal(report.native.availability, 'invalid');
+      assert.equal(report.native.completed['Squad Scribe'], 2);
+      assert(pipeline.stages.every(([, agent]) => report.native.completed[agent] === 0));
+      assert.equal(report.native.pending, 0);
+      assert.deepEqual(report.native.errors, [{ category: 'quota',
+        code: 'session_quota_exceeded', statusCode: 402, scope: 'root' }]);
+      assert.deepEqual(report.native.shutdowns, [{ type: 'error', scope: 'root' }]);
+      assert.equal(report.native.credits.reportedAiCredits, 9);
+      assert.equal(report.native.credits.coverage, 'reported-subtotal');
+      assert.equal(report.native.credits.source, 'session.shutdown');
+      assert(!JSON.stringify(report).includes('PRIVATE'));
+      assert.equal(completion.evaluate(input).decision, 'block');
+      const output = path.join(directory, 'failed-dispatch.json');
+      await assert.rejects(runtime.collect(filename, request, output), /native dispatch telemetry/);
+      assert(!fs.existsSync(output));
+    });
+  });
+  await test('complete artifacts and role dispatch never authorize handoff after a native session error', async () => {
+    fixtures(request);
+    await completionFixture(request, write, async ({ filename, native, input }) => {
+      const { events } = pipelineFixture(request, write);
+      fs.unlinkSync(path.join(process.env.RUNNER_TEMP, 'squad-runtime', 'dispatch.json'));
+      native([...events, { type: 'session.error', data: { errorType: 'authentication', message: 'PRIVATE' } },
+        creditEvent(90e9, 'complete')]);
+      const inspected = runtime.inspectEvents(filename, request);
+      assert.equal(inspected.calls.length, 9);
+      assert(!inspected.proof);
+      assert.equal(completion.evaluate(input).decision, 'block');
+      assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR));
+      assert.equal(diagnostics.report(request.subSquad, 'failure', 'skipped', '1').exitCause, 'unknown');
+    });
+  });
+  await test('only exact known categories and category-specific quota and rate codes survive projection', () => {
+    completionFixture(request, write, ({ native, filename }) => {
+      const codes = { quota: ['quota_exceeded', 'session_quota_exceeded', 'billing_not_configured'],
+        rate_limit: ['user_weekly_rate_limited', 'user_global_rate_limited', 'rate_limited',
+          'user_model_rate_limited', 'integration_rate_limited'] };
+      for (const [category, values] of Object.entries(codes)) {
+        for (const code of values) {
+          native([{ type: 'session.error', data: { errorType: category, errorCode: code,
+            statusCode: 429, message: 'PRIVATE' } }]);
+          assert.deepEqual(runtime.inspectEvents(filename, request).errors,
+            [{ category, code, statusCode: 429, scope: 'root' }]);
+        }
+      }
+      for (const category of ['authentication', 'authorization', 'policy', 'context_limit', 'query']) {
+        native([{ type: 'session.error', data: { errorType: category,
+          errorCode: 'quota_exceeded', message: 'PRIVATE' } }]);
+        assert.deepEqual(runtime.inspectEvents(filename, request).errors,
+          [{ category, code: 'other', statusCode: null, scope: 'root' }]);
+      }
+    });
+  });
+  await test('unknown malicious terminal strings normalize and observations are strictly bounded', () => {
+    completionFixture(request, write, ({ native, filename }) => {
+      native(Array.from({ length: 100 }, (_, statusCode) => ({
+        type: 'session.error', data: { errorType: 'PRIVATE\n::error::', errorCode: 'PRIVATE URL',
+          message: 'PRIVATE MESSAGE', statusCode } })));
+      const inspected = runtime.inspectEvents(filename, request);
+      assert.equal(inspected.errors.length, 16);
+      assert.equal(inspected.errorsTruncated, true);
+      assert(inspected.errors.every(row => row.category === 'other' && row.code === 'other'));
+      assert(!JSON.stringify(inspected).includes('PRIVATE'));
+      for (const statusCode of [-1, 1000, 401.5, '401', null]) {
+        native([{ type: 'session.error', data: { errorType: {}, errorCode: {}, statusCode } }]);
+        assert.equal(runtime.inspectEvents(filename, request).errors[0].statusCode, null);
+      }
+    });
+  });
+  await test('abort and shutdown enums keep objective-cap scope distinct from shared-session limits', () => {
+    completionFixture(request, write, ({ native, filename, events }) => {
+      for (const reason of ['user_initiated', 'remote_command', 'user_abort', 'autopilot_credit_limit', 'PRIVATE']) {
+        native([...events(['hve-squad:squad-scribe']), { type: 'abort', data: { reason } },
+          creditEvent(1e9, 'complete')]);
+        const inspected = runtime.inspectEvents(filename, request);
+        assert.equal(inspected.availability, 'invalid');
+        assert.deepEqual(inspected.aborts, [{ reason: reason === 'PRIVATE' ? 'other' : reason, scope: 'root' }]);
+        assert.equal(inspected.credits.reportedAiCredits, 1);
+        assert.equal(inspected.sessionLimit.observed, false);
+      }
+      for (const shutdownType of ['routine', 'error', 'PRIVATE']) {
+        native([...events(['hve-squad:squad-scribe']),
+          { type: 'session.shutdown', data: { shutdownType, errorReason: 'PRIVATE REASON' } }]);
+        const inspected = runtime.inspectEvents(filename, request);
+        assert.equal(inspected.availability, shutdownType === 'error' ? 'invalid' : 'valid');
+        assert.equal(inspected.shutdowns[0].type, shutdownType === 'PRIVATE' ? 'other' : shutdownType);
+        assert.equal(inspected.credits.reportedAiCredits, null);
+        assert(!JSON.stringify(inspected).includes('PRIVATE'));
+      }
+      native([{ type: 'session_limits_exhausted.requested',
+        data: { maxAiCredits: 90, usedAiCredits: 91, requestId: 'PRIVATE' } }]);
+      assert.deepEqual(runtime.inspectEvents(filename, request).sessionLimit,
+        { observed: true, maxAiCredits: 90, usedAiCredits: 91 });
+      native([{ type: 'session_limits_exhausted.requested', data: { maxAiCredits: '90', usedAiCredits: -1 } }]);
+      assert.equal(runtime.inspectEvents(filename, request).sessionLimit.observed, false);
+    });
+  });
+  await test('repeated snapshots are not receipts and regressing snapshots cannot replace the retained cumulative value', () => {
+    completionFixture(request, write, ({ native, filename, events }) => {
+      native([creditEvent(3e9, 'complete'), creditEvent(3e9, 'complete'),
+        { type: 'assistant.usage', data: { copilotUsage: { totalNanoAiu: 100e9 } } },
+        { type: 'session.usage_info', data: { currentTokens: 999999 } },
+        { ...creditEvent(4e9, 'complete', 'session.shutdown'),
+          data: { ...creditEvent(4e9, 'complete', 'session.shutdown').data,
+            shutdownType: 'routine', modelMetrics: { PRIVATE: { totalNanoAiu: 50e9 } },
+            agentMetrics: { PRIVATE: { totalNanoAiu: 50e9 } } } }]);
+      let inspected = runtime.inspectEvents(filename, request);
+      assert.equal(inspected.credits.reportedAiCredits, 4);
+      assert.equal(inspected.credits.source, 'session.shutdown');
+      assert.equal(inspected.credits.coverage, 'reported-complete');
+      assert(!JSON.stringify(inspected).includes('PRIVATE'));
+      native([...events(['hve-squad:squad-scribe']),
+        creditEvent(4e9, 'complete'), creditEvent(2e9, 'complete'), creditEvent(4e9, 'complete')]);
+      inspected = runtime.inspectEvents(filename, request);
+      assert.equal(inspected.credits.reportedAiCredits, 4);
+      assert.equal(inspected.credits.regressed, true);
+      assert.equal(inspected.credits.coverage, 'unavailable');
+      assert.equal(inspected.availability, 'valid');
+      assert(inspected.proof);
+    });
+  });
+  await test('child accounting never adds to or replaces the root reported subtotal', () => {
+    completionFixture(request, write, ({ native, filename }) => {
+      native([creditEvent(2e9, 'partial'), { ...creditEvent(100e9, 'complete'), agentId: 'PRIVATE' }]);
+      let inspected = runtime.inspectEvents(filename, request);
+      assert.equal(inspected.credits.reportedAiCredits, 2);
+      assert.equal(inspected.credits.ignoredChildSnapshots, 1);
+      assert.equal(inspected.credits.coverage, 'reported-subtotal');
+      native([{ ...creditEvent(100e9, 'complete'), agentId: 'PRIVATE' }]);
+      inspected = runtime.inspectEvents(filename, request);
+      assert.equal(inspected.credits.reportedAiCredits, null);
+      assert.equal(inspected.credits.coverage, 'unavailable');
+      native([{ ...creditEvent(100e9, 'complete'), agentId: null }]);
+      assert.equal(runtime.inspectEvents(filename, request).availability, 'incomplete');
+    });
+  });
+  await test('explicit zero requires status coverage; missing durable status is unknown, not free usage', () => {
+    completionFixture(request, write, ({ native, filename }) => {
+      for (const [status, coverage] of [[undefined, 'unavailable'], ['unavailable', 'unavailable'],
+        ['partial', 'reported-subtotal'], ['complete', 'reported-complete']]) {
+        native([creditEvent(0, status)]);
+        const inspected = runtime.inspectEvents(filename, request);
+        assert.equal(inspected.credits.reportedAiCredits, 0);
+        assert.equal(inspected.credits.coverage, coverage);
+      }
+      native([{ type: 'session.usage_checkpoint', data: { totalNanoAiu: 0, aiCreditsStatus: 'complete' } }]);
+      assert.equal(runtime.inspectEvents(filename, request).credits.coverage, 'unavailable');
+      native([{ type: 'session.shutdown', data: { shutdownType: 'error' } }]);
+      assert.equal(runtime.inspectEvents(filename, request).credits.reportedNanoAiu, null);
+    });
+  });
+  await test('accounting warnings retain proof while broken lifecycle remains invalid', () => {
+    completionFixture(request, write, ({ native, filename, events }) => {
+      for (const bad of [null, -1, '1', Number.MAX_VALUE, {}, undefined]) {
+        native([...events(['hve-squad:squad-scribe']), creditEvent(bad),
+          creditEvent(5e9, 'complete')]);
+        const inspected = runtime.inspectEvents(filename, request);
+        assert.equal(inspected.availability, 'valid');
+        assert(inspected.proof);
+        assert.equal(inspected.credits.reportedAiCredits, 5);
+        assert.equal(inspected.credits.coverage, 'unavailable');
+        assert.equal(inspected.credits.malformedSnapshots, 1);
+      }
+      for (const accountingSnapshot of [{ totalNanoAiu: 99 }, { aiCreditsStatus: 'PRIVATE' }, []]) {
+        native([{ type: 'session.usage_checkpoint', data: { totalNanoAiu: 1, accountingSnapshot } }]);
+        assert.equal(runtime.inspectEvents(filename, request).credits.reportedNanoAiu, null);
+      }
+      for (const bad of [{ type: 'subagent.completed', data: { toolCallId: 'PRIVATE' } },
+        { type: 'subagent.failed' }, null, { type: 'subagent.started', data: {} }]) {
+        native([...events(['hve-squad:squad-scribe']), bad, creditEvent(5e9, 'complete')]);
+        const inspected = runtime.inspectEvents(filename, request);
+        assert.equal(inspected.availability, 'invalid');
+        assert.equal(inspected.calls.length, 1);
+        assert.equal(inspected.credits.reportedAiCredits, 5);
+        assert(!JSON.stringify(inspected).includes('PRIVATE'));
+      }
+      native([...events(['hve-squad:squad-scribe']),
+        { type: 'subagent.started', data: { toolCallId: 'cancel', agentName: 'squad-lead' } },
+        { type: 'subagent.completed', data: { toolCallId: 'cancel', cancelled: true } },
+        creditEvent(5e9, 'complete')]);
+      assert.equal(runtime.inspectEvents(filename, request).availability, 'invalid');
+      write(filename, '{"PRIVATE PARSER": ]\n' + JSON.stringify(creditEvent(5e9, 'complete')));
+      const inspected = runtime.inspectEvents(filename, request);
+      assert.equal(inspected.credits.reportedAiCredits, 5);
+      assert.equal(inspected.credits.coverage, 'unavailable');
+      assert(inspected.failures.includes('malformed-event'));
+    });
+  });
+  await test('accounting discrepancies cannot block complete RPI history, hook or handoff', async () => {
+    fixtures(request);
+    await completionFixture(request, write, async ({ native, filename, input }) => {
+      const fixture = pipelineFixture(request, write);
+      native([...fixture.events, creditEvent(4e9, 'complete'), creditEvent(2e9, 'complete'),
+        creditEvent('PRIVATE INVALID AMOUNT')]);
+      const inspected = runtime.inspectEvents(filename, request);
+      assert.equal(inspected.availability, 'valid');
+      assert.equal(inspected.credits.coverage, 'unavailable');
+      assert(inspected.credits.regressed);
+      assert.deepEqual(completion.evaluate(input), {});
+      const proofPath = path.join(process.env.RUNNER_TEMP, 'squad-runtime', 'dispatch.json');
+      fs.unlinkSync(proofPath);
+      await runtime.collect(filename, request, proofPath);
+      handoff.stage(request, cfg, process.env.HANDOFF_DIR);
+      assert(!JSON.stringify(diagnostics.report(request.subSquad, 'success', 'success', '0')).includes('PRIVATE'));
+    });
+  });
+  await test('diagnostic context and immutable cap binding fail safely without arbitrary request data', () => {
+    completionFixture(request, write, ({ native }) => {
+      native([creditEvent(1e9, 'complete')]);
+      assert.equal(progress.diagnostics(request.subSquad).configuredSharedSessionCapAiCredits, 90);
+      assert.equal(progress.diagnostics('issue-99').diagnosticContext, 'unavailable');
+      write('.watch-run/request.json', 'PRIVATE CHANGED REQUEST');
+      const report = progress.diagnostics(request.subSquad);
+      assert.equal(report.diagnosticContext, 'unavailable');
+      assert.equal(report.native.availability, 'unavailable');
+      assert.equal(report.native.credits.reportedAiCredits, null);
+      assert.equal(report.configuredSharedSessionCapAiCredits, null);
+      assert(!JSON.stringify(report).includes('PRIVATE'));
+    });
+  });
+  await test('failure diagnostic entrypoint publishes only bounded facts to JSON and summary, never native text', () => {
+    completionFixture(request, write, ({ native, events }) => {
+      native([...events(['hve-squad:squad-scribe']),
+        { type: 'session.error', data: { errorType: 'authentication', message: 'PRIVATE MESSAGE',
+          errorCode: 'PRIVATE CODE', url: 'PRIVATE URL', stack: 'PRIVATE STACK', serviceRequestId: 'PRIVATE ID' } },
+        creditEvent(5e9, 'partial', 'session.shutdown')]);
+      const destination = path.join(clone, '.watch-run', 'failure-diagnostic');
+      const summary = path.join(clone, '.watch-run', 'failure-summary');
+      const result = spawnSync(process.execPath, [path.join(original, 'scripts', 'squad-watch', 'diagnostics.cjs')], {
+        env: { ...process.env, AUDIT_MEMBER: request.subSquad, MODEL_OUTCOME: 'failure',
+          HANDOFF_OUTCOME: 'skipped', CLI_EXIT_CODE: '1', DIAGNOSTIC_DIR: destination,
+          GITHUB_STEP_SUMMARY: summary }, encoding: 'utf8'
+      });
+      assert.equal(result.status, 0);
+      const bytes = fs.readFileSync(path.join(destination, 'runtime-status.json'), 'utf8');
+      assert(!/PRIVATE|toolCallId|sessionId/.test(bytes + result.stdout + result.stderr +
+        fs.readFileSync(summary, 'utf8')));
+      assert.equal(JSON.parse(bytes).native.credits.reportedAiCredits, 5);
+      assert.deepEqual(fs.readdirSync(destination), ['runtime-status.json']);
+    });
+  });
   await test('independent apply rejects stage evidence without the actual ordered runtime proof', () => {
     fixtures(request);
     handoff.stage(request, cfg, process.env.HANDOFF_DIR);
@@ -1020,7 +1278,7 @@ async function run() {
     assert.equal(result.cliExitCode, 0);
     assert.equal(result.auditPresence.memberState.disk, 'absent');
     assert.deepEqual(fs.readdirSync(destination), ['runtime-status.json']);
-    assert(fs.readFileSync(summary, 'utf8').includes('Credit exhaustion'));
+    assert(fs.readFileSync(summary, 'utf8').includes('upstream quota scope is unknown'));
   });
   await test('both CLI launchers pin and trust the checked-out repository root', () => {
     for (const script of ['run-squad.sh', 'run-review.sh']) {
@@ -1065,12 +1323,17 @@ async function run() {
           'cp "$FIXTURE_NATIVE_EVENTS" "$COPILOT_HOME/session-state/$session/events.jsonl"\n' +
           'printf \"private fixture text must not escape\\\\n\" >&2\nexit \"$FIXTURE_EXIT\"\n');
         fs.chmodSync(path.join(bin, 'copilot'), 0o755);
-        for (const code of [0, 7, 124]) {
+        for (const code of [0, 1, 7, 124]) {
           fs.rmSync(path.join(runnerTemp, 'squad-runtime', 'copilot-home'), { recursive: true, force: true });
           fs.rmSync(path.join(runnerTemp, 'squad-runtime', 'dispatch.json'), { force: true });
           fs.rmSync(path.join(runnerTemp, 'squad-runtime', 'completion-context.json'), { force: true });
           write(output, '');
           write(argsFile, '');
+          write(nativeEvents, [...events, ...(code === 1 ? [
+            { type: 'session.error', data: { errorType: 'quota',
+              errorCode: 'session_quota_exceeded', message: 'private fixture error' } },
+            creditEvent(4e9, 'partial'), creditEvent(5e9, 'partial', 'session.shutdown')
+          ] : [])].map(event => JSON.stringify(event)).join('\n'));
           let stdout;
           try {
             stdout = execFileSync('bash', [wrapper], {
@@ -1087,6 +1350,7 @@ async function run() {
             stdout = error.stdout.toString() + error.stderr.toString();
           }
           assert(!stdout.includes('private fixture text'));
+          assert.equal(fs.existsSync(path.join(runnerTemp, 'squad-runtime', 'dispatch.json')), code === 0);
           assert.equal(fs.readFileSync(output, 'utf8'), `cli_exit_code=${code}\n`);
           const args = fs.readFileSync(argsFile, 'utf8').trim().split('\n');
           assert.equal(args[args.indexOf('-C') + 1], clone);
@@ -1094,6 +1358,23 @@ async function run() {
           assert.equal(args[args.indexOf('--plugin-dir') + 1], plugin);
           assert(args.includes('hve-squad:squad-federation-coordinator'));
           assert.equal(args[args.indexOf('--max-ai-credits') + 1], '90');
+          if (code === 1) {
+            const diagnosticDir = path.join(clone, '.watch-run', 'launcher-diagnostic');
+            const diagnostic = spawnSync(process.execPath,
+              [path.join(original, 'scripts', 'squad-watch', 'diagnostics.cjs')], {
+                env: { ...process.env, RUNNER_TEMP: runnerTemp, DIAGNOSTIC_DIR: diagnosticDir,
+                  AUDIT_MEMBER: request.subSquad, MODEL_OUTCOME: 'failure',
+                  HANDOFF_OUTCOME: 'skipped', CLI_EXIT_CODE: '1' }, encoding: 'utf8'
+              });
+            assert.equal(diagnostic.status, 0);
+            const bytes = fs.readFileSync(path.join(diagnosticDir, 'runtime-status.json'), 'utf8');
+            const report = JSON.parse(bytes);
+            assert.equal(report.diagnosticContext, 'bound');
+            assert.equal(report.native.availability, 'invalid');
+            assert.equal(report.native.credits.reportedAiCredits, 5);
+            assert.equal(report.native.errors[0].code, 'session_quota_exceeded');
+            assert(!/private fixture/.test(bytes + diagnostic.stdout + diagnostic.stderr + stdout));
+          }
         }
       });
     }

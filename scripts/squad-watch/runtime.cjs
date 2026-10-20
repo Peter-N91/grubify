@@ -85,6 +85,7 @@ function observer(request) {
       'Unsupported CLI subagent event schema');
     if (event.type === 'subagent.started') {
       p.check(!seen.has(data.toolCallId), 'Duplicate runtime dispatch');
+      p.check(seen.size < 300, 'Runtime dispatch bound exceeded');
       seen.add(data.toolCallId);
       // Display names alone cannot turn a general-purpose child into a cast member.
       const name = relevant.get(data.agentName);
@@ -112,6 +113,104 @@ function observer(request) {
   return { event, finish, snapshot: () => ({ calls: [...calls], pending: pending.size }) };
 }
 
+// Project typed facts only. Native strings, including errorType/errorCode, are
+// untrusted; neither diagnostic output nor hook output may contain their prose.
+function failureFacts() {
+  const facts = { failures: [], errors: [], errorsTruncated: false, aborts: [], shutdowns: [],
+    sessionLimit: { observed: false, maxAiCredits: null, usedAiCredits: null },
+    credits: { reportedNanoAiu: null, reportedAiCredits: null, source: 'unavailable',
+      aiCreditsStatus: 'unavailable', statusSource: 'unavailable', coverage: 'unavailable',
+      regressed: false, ignoredChildSnapshots: 0, malformedSnapshots: 0 } };
+  const categories = ['quota', 'rate_limit', 'authentication', 'authorization', 'policy',
+    'context_limit', 'query'];
+  const codes = {
+    quota: ['quota_exceeded', 'session_quota_exceeded', 'billing_not_configured'],
+    rate_limit: ['user_weekly_rate_limited', 'user_global_rate_limited', 'rate_limited',
+      'user_model_rate_limited', 'integration_rate_limited']
+  };
+  const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const amount = value => typeof value === 'number' && Number.isFinite(value) &&
+    value >= 0 && value <= Number.MAX_SAFE_INTEGER;
+  const fail = category => {
+    if (!facts.failures.includes(category)) facts.failures.push(category);
+  };
+  const unique = (array, value, maximum) => {
+    if (array.some(row => JSON.stringify(row) === JSON.stringify(value))) return;
+    if (array.length < maximum) array.push(value);
+    else facts.errorsTruncated = true;
+  };
+  const increment = key => { facts.credits[key] = Math.min(65535, facts.credits[key] + 1); };
+  function event(value) {
+    if (!object(value) || typeof value.type !== 'string') { fail('malformed-event'); return; }
+    const data = object(value.data) ? value.data : {};
+    const scope = !Object.hasOwn(value, 'agentId') ? 'root' :
+      typeof value.agentId === 'string' && value.agentId.length > 0 ? 'child' : 'unknown';
+    if (value.type === 'session.error') {
+      fail('terminal-error');
+      const category = categories.includes(data.errorType) ? data.errorType : 'other';
+      unique(facts.errors, { category,
+        code: data.errorCode === undefined ? 'unavailable' :
+          (codes[category] || []).includes(data.errorCode) ? data.errorCode : 'other',
+        statusCode: Number.isInteger(data.statusCode) && data.statusCode >= 0 &&
+          data.statusCode <= 999 ? data.statusCode : null, scope }, 16);
+    } else if (value.type === 'abort') {
+      fail('aborted');
+      unique(facts.aborts, { reason: ['user_initiated', 'remote_command', 'user_abort',
+        'autopilot_credit_limit'].includes(data.reason) ? data.reason : 'other', scope }, 15);
+    } else if (value.type === 'subagent.failed') fail('subagent-failed');
+    else if (value.type === 'session.shutdown') {
+      const type = ['routine', 'error'].includes(data.shutdownType) ? data.shutdownType : 'other';
+      unique(facts.shutdowns, { type, scope }, 9);
+      if (type !== 'routine') fail(type === 'error' ? 'error-shutdown' : 'invalid-telemetry');
+    } else if (value.type === 'session_limits_exhausted.requested') {
+      fail('session-limit-observed');
+      if (scope === 'root' && amount(data.maxAiCredits) && amount(data.usedAiCredits)) {
+        facts.sessionLimit = { observed: true, maxAiCredits: data.maxAiCredits,
+          usedAiCredits: data.usedAiCredits };
+      } else fail('invalid-telemetry');
+    }
+    if (!['session.usage_checkpoint', 'session.shutdown'].includes(value.type)) return;
+    if (scope === 'child') { increment('ignoredChildSnapshots'); return; }
+    const credits = facts.credits;
+    const malformed = () => { increment('malformedSnapshots'); fail('invalid-telemetry'); };
+    if (scope !== 'root' || !object(value.data)) { malformed(); return; }
+    if (data.totalNanoAiu === undefined && value.type === 'session.shutdown') return;
+    if (!amount(data.totalNanoAiu)) { malformed(); return; }
+    // In 1.0.98 the durable status is inside the optional accountingSnapshot
+    // (internal schema), NOT a top-level checkpoint/shutdown status field.
+    const accounting = data.accountingSnapshot;
+    let status = 'unavailable';
+    if (accounting !== undefined) {
+      if (!object(accounting) || (accounting.totalNanoAiu !== undefined &&
+          accounting.totalNanoAiu !== data.totalNanoAiu) ||
+          (accounting.aiCreditsStatus !== undefined &&
+          !['complete', 'partial', 'unavailable'].includes(accounting.aiCreditsStatus))) {
+        malformed(); return;
+      }
+      status = accounting.aiCreditsStatus || 'unavailable';
+    }
+    if (credits.reportedNanoAiu !== null && data.totalNanoAiu < credits.reportedNanoAiu) {
+      credits.regressed = true;
+      malformed();
+      return;
+    }
+    credits.reportedNanoAiu = data.totalNanoAiu;
+    credits.reportedAiCredits = data.totalNanoAiu / 1e9;
+    credits.source = value.type;
+    credits.aiCreditsStatus = status;
+    credits.statusSource = accounting?.aiCreditsStatus === undefined ?
+      'unavailable' : 'accountingSnapshot';
+  }
+  function snapshot() {
+    facts.credits.coverage = facts.credits.malformedSnapshots || facts.failures.some(category =>
+      ['malformed-event', 'stream-bound', 'line-bound', 'unsafe-or-unreadable'].includes(category)) ?
+      'unavailable' : facts.credits.aiCreditsStatus === 'complete' ? 'reported-complete' :
+        facts.credits.aiCreditsStatus === 'partial' ? 'reported-subtotal' : 'unavailable';
+    return facts;
+  }
+  return { event, fail, snapshot };
+}
+
 // Shared read-only scanner also works while a session is still open. An invalid
 // stream may expose bounded counts for diagnostics, but never a usable proof.
 function regularPath(filename, maximum) {
@@ -135,11 +234,27 @@ function regularPath(filename, maximum) {
 
 function inspectEvents(filename, request) {
   const watcher = observer(request);
-  let availability = 'invalid';
+  const facts = failureFacts();
+  const terminalFailures = new Set(['malformed-event', 'terminal-error', 'aborted',
+    'subagent-failed', 'error-shutdown']);
+  let lifecycleValid = true;
   let descriptor;
+  const result = availability => ({ availability, ...watcher.snapshot(), ...facts.snapshot() });
+  const consume = text => {
+    if (!text.trim()) return;
+    let event;
+    try { event = JSON.parse(text); }
+    catch { facts.fail('malformed-event'); lifecycleValid = false; return; }
+    facts.event(event);
+    // Accounting anomalies are diagnostic warnings, not dispatch/history gates.
+    if (facts.snapshot().failures.some(category => terminalFailures.has(category))) lifecycleValid = false;
+    if (!lifecycleValid) return;
+    try { watcher.event(event); }
+    catch { facts.fail('invalid-lifecycle'); lifecycleValid = false; }
+  };
   try {
     const file = regularPath(filename, 128 * 1024 * 1024);
-    if (!file) return { availability: 'missing', calls: [], pending: 0 };
+    if (!file) return result('missing');
     descriptor = fs.openSync(file, 'r');
     const decoder = new (require('node:string_decoder').StringDecoder)('utf8');
     const buffer = Buffer.alloc(65536);
@@ -148,28 +263,32 @@ function inspectEvents(filename, request) {
     let size;
     while ((size = fs.readSync(descriptor, buffer, 0, buffer.length, null))) {
       total += size;
-      p.check(total <= 128 * 1024 * 1024, 'Event stream bound exceeded');
+      if (total > 128 * 1024 * 1024) { facts.fail('stream-bound'); return result('invalid'); }
       remaining += decoder.write(buffer.subarray(0, size));
       let end;
       while ((end = remaining.indexOf('\n')) >= 0) {
         const line = remaining.slice(0, end);
-        p.check(line.length <= 8 * 1024 * 1024, 'Event line bound exceeded');
-        if (line.trim()) watcher.event(JSON.parse(line));
+        if (line.length > 8 * 1024 * 1024) { facts.fail('line-bound'); return result('invalid'); }
+        consume(line);
         remaining = remaining.slice(end + 1);
       }
-      p.check(remaining.length <= 8 * 1024 * 1024, 'Event line bound exceeded');
+      if (remaining.length > 8 * 1024 * 1024) { facts.fail('line-bound'); return result('invalid'); }
     }
     remaining += decoder.end();
-    if (remaining.trim()) watcher.event(JSON.parse(remaining));
+    if (remaining.length > 8 * 1024 * 1024) { facts.fail('line-bound'); return result('invalid'); }
+    consume(remaining);
+    if (!lifecycleValid) return result('invalid');
     const snapshot = watcher.snapshot();
     if (!snapshot.calls.length && snapshot.pending === 0) {
-      return { availability: 'incomplete', ...snapshot };
+      return result('incomplete');
     }
-    const proof = watcher.finish();
-    availability = 'valid';
-    return { availability, proof, ...watcher.snapshot() };
+    let proof;
+    try { proof = watcher.finish(); }
+    catch { facts.fail('incomplete-lifecycle'); return result('invalid'); }
+    return { ...result('valid'), proof };
   } catch {
-    return { availability, ...watcher.snapshot() };
+    facts.fail('unsafe-or-unreadable');
+    return result('invalid');
   } finally {
     if (descriptor !== undefined) fs.closeSync(descriptor);
   }
@@ -201,4 +320,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { assemble, observer, collect, readProof, inspectEvents, regularPath };
+module.exports = { assemble, observer, collect, readProof, inspectEvents, regularPath, failureFacts };
