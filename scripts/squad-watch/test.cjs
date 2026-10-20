@@ -194,7 +194,8 @@ async function run() {
     schemaVersion: 1, repository: cfg.repository, baseBranch: 'main', baseSha,
     issue: 42, ref: `${cfg.repository}#42`, source: 'issue', eventId: 'issues:142',
     actor: 'Peter-N91', triggeringActor: 'Peter-N91', runId: '123', runAttempt: '1',
-    subSquad: 'issue-42', branch: 'squad/issue-42', model: cfg.model, maxAiCredits: cfg.defaultAiCredits
+    subSquad: 'issue-42', branch: 'squad/issue-42', model: cfg.model,
+    maxAiCredits: cfg.defaultAiCredits, uncappedDiagnostic: false
   };
   request.issueHash = p.issueHash(mock(request).issue);
   process.env.TRIGGERING_ACTOR = 'Peter-N91';
@@ -875,8 +876,14 @@ async function run() {
   });
   await test('diagnostic context and immutable cap binding fail safely without arbitrary request data', () => {
     completionFixture(request, write, ({ native }) => {
-      native([creditEvent(1e9, 'complete')]);
-      assert.equal(progress.diagnostics(request.subSquad).configuredSharedSessionCapAiCredits, 90);
+      native([creditEvent(109e9, 'complete'), {
+        type: 'session_limits_exhausted.requested', data: { maxAiCredits: 999, usedAiCredits: 1001 }
+      }]);
+      const bounded = progress.diagnostics(request.subSquad);
+      assert.equal(bounded.configuredSharedSessionCapAiCredits, 90);
+      assert.equal(bounded.configuredCreditMode, 'bounded');
+      assert.equal(bounded.native.credits.reportedAiCredits, 109);
+      assert.equal(bounded.native.sessionLimit.maxAiCredits, 999);
       assert.equal(progress.diagnostics('issue-99').diagnosticContext, 'unavailable');
       write('.watch-run/request.json', 'PRIVATE CHANGED REQUEST');
       const report = progress.diagnostics(request.subSquad);
@@ -884,6 +891,8 @@ async function run() {
       assert.equal(report.native.availability, 'unavailable');
       assert.equal(report.native.credits.reportedAiCredits, null);
       assert.equal(report.configuredSharedSessionCapAiCredits, null);
+      assert.equal(report.configuredCreditMode, 'unavailable');
+      assert(report.configuredCreditPolicy.includes('mode is unknown'));
       assert(!JSON.stringify(report).includes('PRIVATE'));
     });
   });
@@ -994,6 +1003,15 @@ async function run() {
     assert.equal(p.credits('', cfg), 90);
     assert.equal(p.credits('90', cfg), 90);
     for (const value of ['1', '29', '91', 'unset', '30.5']) assert.throws(() => p.credits(value, cfg));
+    assert.deepEqual(p.creditBudget('unset', cfg, true), { maxAiCredits: null, uncappedDiagnostic: true });
+    for (const value of [null, 'null', '0', '-1', 'Unset', ' unset', 'unset ', 'undefined', '9000']) {
+      assert.throws(() => p.creditBudget(value, cfg, true));
+    }
+    for (const budget of [{ maxAiCredits: null }, { maxAiCredits: null, uncappedDiagnostic: false },
+      { maxAiCredits: 90, uncappedDiagnostic: true }, { maxAiCredits: '90', uncappedDiagnostic: false },
+      { uncappedDiagnostic: true }, { maxAiCredits: null, uncappedDiagnostic: 'true' }]) {
+      assert.throws(() => p.creditInput(budget, cfg));
+    }
   });
   await test('path scope and real HVE display-name histories', () => {
     assert.equal(p.safePath('.copilot-tracking/squad/members/issue-42/history/Squad Reviewer.md', cfg, request.subSquad),
@@ -1045,6 +1063,7 @@ async function run() {
     assert.equal(snapshot.eventId, 'issues:142');
     assert.equal(snapshot.branch, 'squad/issue-42');
     assert.equal(snapshot.maxAiCredits, 90);
+    assert.equal(snapshot.uncappedDiagnostic, false);
     assert.equal(api.outputs.producer_attempt, '1');
     assert.equal(api.outputs.artifact_name, 'squad-request-123-1');
     assert.equal(api.outputs.request_sha256, p.digest(p.requestBytes()));
@@ -1058,8 +1077,116 @@ async function run() {
     assert.equal(api.outputs.authorized, 'true');
     const snapshot = JSON.parse(fs.readFileSync(path.join(process.env.REQUEST_DIR, 'request.json')));
     assert.equal(snapshot.maxAiCredits, 60);
+    assert.equal(snapshot.uncappedDiagnostic, false);
     assert.equal(snapshot.eventId, 'issues:142');
+    requestEnvironment(snapshot);
+    await prepare.revalidate(api);
     requestEnvironment(request);
+  });
+  await test('authorized manual unset survives immutable request, handoff, apply and deterministic review linkage', async () => {
+    const api = mock(request, { issue: { labels: [] } });
+    api.context.eventName = 'workflow_dispatch';
+    api.context.payload.inputs = { issue_number: '42', max_ai_credits: 'unset' };
+    await prepare(api);
+    const diagnostic = JSON.parse(p.requestBytes());
+    assert.equal(diagnostic.maxAiCredits, null);
+    assert.equal(diagnostic.uncappedDiagnostic, true);
+    assert.equal(api.outputs.request_sha256, p.digest(p.requestBytes()));
+    requestEnvironment(diagnostic);
+    await prepare.revalidate(api);
+    const prompt = handoff.prompt(diagnostic);
+    assert(prompt.includes('Uncapped diagnostic: no native AI-credit ceiling; 30-minute timeout still applies'));
+    assert(prompt.includes('A Risk Stop verdict stops Implement'));
+    assert(!/null AI credits|90 AI credits/.test(prompt));
+    fixtures(diagnostic);
+    completionFixture(diagnostic, write, ({ native }) => {
+      native([creditEvent(108929595000, 'partial')]);
+      const report = diagnostics.report(diagnostic.subSquad, 'failure', 'skipped', '1');
+      assert.equal(report.configuredCreditMode, 'uncapped-diagnostic');
+      assert.equal(report.configuredSharedSessionCapAiCredits, null);
+      assert(report.configuredCreditPolicy.includes('30-minute timeout'));
+      assert.equal(report.native.credits.reportedAiCredits, 108.929595);
+      assert.equal(report.native.credits.coverage, 'reported-subtotal');
+    });
+    handoff.stage(diagnostic, cfg, process.env.HANDOFF_DIR);
+    const manifest = JSON.parse(fs.readFileSync(path.join(process.env.HANDOFF_DIR, 'handoff.json')));
+    assert.equal(manifest.maxAiCredits, null);
+    assert.equal(manifest.uncappedDiagnostic, true);
+    clean();
+    await apply(api);
+    const linkage = JSON.parse(fs.readFileSync(path.join(process.env.RESULT_DIR, 'result.json')));
+    assert.equal(linkage.generationSource, 'workflow_dispatch');
+    assert.equal(linkage.generationMaxAiCreditsInput, 'unset');
+    assert.equal(linkage.maxAiCredits, null);
+    assert.equal(linkage.uncappedDiagnostic, true);
+    assert.equal(api.outputs.review_max_ai_credits, 'unset');
+    const body = api.writes.find(([kind]) => kind === 'pr')[1].body;
+    assert(body.includes('second independent session inherits'));
+    assert(body.includes('Uncapped diagnostic: no native AI-credit ceiling; 30-minute timeout still applies'));
+    assert(!/null AI credits|own 90-credit/.test(body));
+    requestEnvironment(request);
+  });
+  await test('uncapped opt-in is per manual dispatch, never label inputs or issue prose', async () => {
+    const api = mock(request, { issue: { body: 'max_ai_credits=unset uncappedDiagnostic=true' } });
+    api.context.payload.inputs = { max_ai_credits: 'unset' };
+    await prepare(api);
+    const bounded = JSON.parse(p.requestBytes());
+    assert.equal(bounded.maxAiCredits, 90);
+    assert.equal(bounded.uncappedDiagnostic, false);
+    requestEnvironment(bounded);
+    await prepare.revalidate(api);
+    api.context.eventName = 'workflow_dispatch';
+    api.context.payload.inputs = { issue_number: '42' };
+    await prepare(api);
+    assert.equal(JSON.parse(p.requestBytes()).maxAiCredits, 90);
+    assert.equal(JSON.parse(p.requestBytes()).uncappedDiagnostic, false);
+    requestEnvironment(request);
+  });
+  await test('manual unset still requires initial and current collaborator authorization', async () => {
+    for (const actor of ['Peter-N91', 'reader']) {
+      const api = mock(request, { permissions: { [actor]: 'read' } });
+      api.context.eventName = 'workflow_dispatch';
+      api.context.payload.inputs = { issue_number: '42', max_ai_credits: 'unset' };
+      process.env.TRIGGERING_ACTOR = actor;
+      await prepare(api);
+      assert.equal(api.outputs.authorized, 'false');
+      assert.equal(api.writes.length, 0);
+    }
+    process.env.TRIGGERING_ACTOR = 'Peter-N91';
+  });
+  await test('immutable forged null/missing/mismatched credit modes fail before model and apply', async () => {
+    for (const budget of [{ maxAiCredits: null, uncappedDiagnostic: true },
+      { maxAiCredits: null, uncappedDiagnostic: false }, { maxAiCredits: null, uncappedDiagnostic: undefined },
+      { maxAiCredits: 90, uncappedDiagnostic: undefined }, { maxAiCredits: 60, uncappedDiagnostic: false }]) {
+      const forged = { ...request, ...budget };
+      requestEnvironment(forged);
+      const api = mock(forged);
+      await assert.rejects(prepare.revalidate(api));
+      await assert.rejects(apply(api));
+      assert.equal(api.writes.length, 0);
+    }
+    for (const input of ['', undefined, '90', '60']) {
+      const forged = { ...request, source: 'workflow_dispatch', maxAiCredits: null, uncappedDiagnostic: true };
+      requestEnvironment(forged);
+      const api = mock(forged);
+      api.context.eventName = 'workflow_dispatch';
+      api.context.payload.inputs = { issue_number: '42', max_ai_credits: input };
+      await assert.rejects(prepare.revalidate(api), /credit mode\/cap/);
+      await assert.rejects(apply(api), /credit mode\/cap/);
+    }
+    requestEnvironment(request);
+  });
+  await test('uncapped handoff mode cannot be removed or changed independently of immutable request', () => {
+    fixtures(request);
+    handoff.stage(request, cfg, process.env.HANDOFF_DIR);
+    const filename = path.join(process.env.HANDOFF_DIR, 'handoff.json');
+    const manifest = JSON.parse(fs.readFileSync(filename));
+    clean();
+    for (const budget of [{ maxAiCredits: null, uncappedDiagnostic: true },
+      { maxAiCredits: 60, uncappedDiagnostic: false }, { uncappedDiagnostic: undefined }]) {
+      write(filename, JSON.stringify({ ...manifest, ...budget }));
+      assert.throws(() => apply.validateArtifact(request, cfg, process.env.HANDOFF_DIR));
+    }
   });
   for (const options of [{ issue: { state: 'closed' } }, { issue: { pull_request: {} } },
     { issue: { labels: [] } }, { baseSha: 'a'.repeat(40) }]) {
@@ -1292,15 +1419,21 @@ async function run() {
       assert(launcher.includes('completion-gate.cjs" init "$SESSION_ID"'));
       assert(launcher.includes('30m'));
       assert(launcher.includes('--max-ai-credits "$CREDITS"'));
+      assert(launcher.includes('"${CREDIT_ARGS[@]}"'));
       assert.equal((launcher.match(/^\s+copilot --no-auto-update/gm) || []).length, 1);
     }
   });
   if (process.platform !== 'win32') {
-    for (const script of ['run-squad.sh', 'run-review.sh']) {
-      await test(`${script} real Bash boundary records exit without leaking raw output (mock CLI, no AI)`, () => {
+    const launches = ['run-squad.sh', 'run-review.sh'].flatMap(script =>
+      ['90', '60', 'unset'].map(input => [script, input]));
+    for (const [script, creditInput] of launches) {
+      await test(`${script} real Bash argv ${creditInput} preserves timeout/exit/private boundary (mock CLI, no AI)`, () => {
+        const launchRequest = { ...request, source: script === 'run-review.sh' ? 'pr' : 'workflow_dispatch',
+          ...p.creditBudget(creditInput, cfg, true) };
         const bin = path.join(clone, '.watch-run', 'mock-bin');
         const output = path.join(clone, '.watch-run', 'outputs');
         const argsFile = path.join(clone, '.watch-run', 'copilot-args');
+        const timeoutArgs = path.join(clone, '.watch-run', 'timeout-args');
         const runnerTemp = path.join(directory, script + '-runner-temp');
         const plugin = path.join(runnerTemp, 'squad-tools', 'hve-squad-runtime');
         const helper = path.join(runnerTemp, 'squad-runtime', 'helper');
@@ -1310,9 +1443,10 @@ async function run() {
             fs.readFileSync(path.join(original, 'scripts', 'squad-watch', name + '.cjs')));
         }
         const nativeEvents = path.join(clone, '.watch-run', 'native-events.jsonl');
-        const { events } = pipelineFixture(request, write);
+        const { events } = pipelineFixture(launchRequest, write);
         write(nativeEvents, events.map(event => JSON.stringify(event)).join('\n'));
-        write('.watch-run/request.json', JSON.stringify(request));
+        const requestBytes = JSON.stringify(launchRequest);
+        write('.watch-run/request.json', requestBytes);
         write('.watch-run/prompt.txt', 'Offline fixture, never a real model request\n');
         const wrapper = path.join(clone, '.watch-run', 'runtime-fixture.sh');
         write(wrapper, fs.readFileSync(path.join(original, 'scripts', 'squad-watch', script), 'utf8')
@@ -1323,6 +1457,8 @@ async function run() {
           'cp "$FIXTURE_NATIVE_EVENTS" "$COPILOT_HOME/session-state/$session/events.jsonl"\n' +
           'printf \"private fixture text must not escape\\\\n\" >&2\nexit \"$FIXTURE_EXIT\"\n');
         fs.chmodSync(path.join(bin, 'copilot'), 0o755);
+        write(path.join(bin, 'timeout'), '#!/bin/bash\nprintf \"%s\\\\n\" \"$@\" > \"$FIXTURE_TIMEOUT_ARGS\"\nexec /usr/bin/timeout \"$@\"\n');
+        fs.chmodSync(path.join(bin, 'timeout'), 0o755);
         for (const code of [0, 1, 7, 124]) {
           fs.rmSync(path.join(runnerTemp, 'squad-runtime', 'copilot-home'), { recursive: true, force: true });
           fs.rmSync(path.join(runnerTemp, 'squad-runtime', 'dispatch.json'), { force: true });
@@ -1340,7 +1476,8 @@ async function run() {
               env: { PATH: `${bin}:${path.dirname(process.execPath)}:/usr/bin:/bin`,
                 HOME: path.join(clone, '.watch-run'), COPILOT_GITHUB_TOKEN: 'offline-dummy-not-a-credential',
                 GITHUB_OUTPUT: output, RUNNER_TEMP: runnerTemp,
-                GITHUB_RUN_ATTEMPT: '1', EXPECTED_REQUEST_SHA256: process.env.EXPECTED_REQUEST_SHA256,
+                GITHUB_RUN_ATTEMPT: '1', EXPECTED_REQUEST_SHA256: p.digest(requestBytes),
+                FIXTURE_TIMEOUT_ARGS: timeoutArgs,
                 FIXTURE_NATIVE_EVENTS: nativeEvents,
                 FIXTURE_ARGS: argsFile, FIXTURE_EXIT: String(code) }, stdio: 'pipe'
             }).toString();
@@ -1357,12 +1494,21 @@ async function run() {
           assert.equal(args[args.indexOf('--add-dir') + 1], clone);
           assert.equal(args[args.indexOf('--plugin-dir') + 1], plugin);
           assert(args.includes('hve-squad:squad-federation-coordinator'));
-          assert.equal(args[args.indexOf('--max-ai-credits') + 1], '90');
+          if (creditInput === 'unset') {
+            assert(!args.includes('--max-ai-credits'));
+            assert(!args.some(arg => ['unset', 'null', '0'].includes(arg)));
+          } else {
+            assert.equal(args.filter(arg => arg === '--max-ai-credits').length, 1);
+            assert.equal(args[args.indexOf('--max-ai-credits') + 1], creditInput);
+          }
+          assert.deepEqual(fs.readFileSync(timeoutArgs, 'utf8').split('\n').slice(0, 4),
+            ['--signal=TERM', '--kill-after=30s', '30m', 'copilot']);
           if (code === 1) {
             const diagnosticDir = path.join(clone, '.watch-run', 'launcher-diagnostic');
             const diagnostic = spawnSync(process.execPath,
               [path.join(original, 'scripts', 'squad-watch', 'diagnostics.cjs')], {
                 env: { ...process.env, RUNNER_TEMP: runnerTemp, DIAGNOSTIC_DIR: diagnosticDir,
+                  EXPECTED_REQUEST_SHA256: p.digest(requestBytes),
                   AUDIT_MEMBER: request.subSquad, MODEL_OUTCOME: 'failure',
                   HANDOFF_OUTCOME: 'skipped', CLI_EXIT_CODE: '1' }, encoding: 'utf8'
               });
@@ -1370,11 +1516,42 @@ async function run() {
             const bytes = fs.readFileSync(path.join(diagnosticDir, 'runtime-status.json'), 'utf8');
             const report = JSON.parse(bytes);
             assert.equal(report.diagnosticContext, 'bound');
+            assert.equal(report.configuredCreditMode, creditInput === 'unset' ? 'uncapped-diagnostic' : 'bounded');
             assert.equal(report.native.availability, 'invalid');
             assert.equal(report.native.credits.reportedAiCredits, 5);
             assert.equal(report.native.errors[0].code, 'session_quota_exceeded');
             assert(!/private fixture/.test(bytes + diagnostic.stdout + diagnostic.stderr + stdout));
           }
+        }
+      });
+    }
+    for (const script of ['run-squad.sh', 'run-review.sh']) {
+      await test(`${script} real Bash rejects malformed credit modes before CLI invocation`, () => {
+        const runnerTemp = path.join(directory, script + '-invalid-runner');
+        const helper = path.join(runnerTemp, 'squad-runtime', 'helper');
+        write(path.join(helper, 'policy.cjs'),
+          fs.readFileSync(path.join(original, 'scripts', 'squad-watch', 'policy.cjs')));
+        const bin = path.join(clone, '.watch-run', 'invalid-bin');
+        const called = path.join(clone, '.watch-run', 'invalid-cli-called');
+        write(path.join(bin, 'copilot'), '#!/bin/bash\nprintf called > \"$FIXTURE_CALLED\"\nexit 99\n');
+        fs.chmodSync(path.join(bin, 'copilot'), 0o755);
+        const wrapper = path.join(clone, '.watch-run', 'invalid-launcher.sh');
+        write(wrapper, fs.readFileSync(path.join(original, 'scripts', 'squad-watch', script), 'utf8')
+          .replace(/\r\n/g, '\n'));
+        for (const budget of [{ maxAiCredits: null, uncappedDiagnostic: false },
+          { maxAiCredits: null, uncappedDiagnostic: undefined },
+          { maxAiCredits: 90, uncappedDiagnostic: true }, { maxAiCredits: 9000, uncappedDiagnostic: false },
+          { maxAiCredits: 'null', uncappedDiagnostic: true },
+          { maxAiCredits: null, uncappedDiagnostic: true, source: 'issue' }]) {
+          write('.watch-run/request.json', JSON.stringify({ ...request, source: 'workflow_dispatch', ...budget }));
+          const result = spawnSync('bash', [wrapper], {
+            env: { PATH: `${bin}:${path.dirname(process.execPath)}:/usr/bin:/bin`,
+              COPILOT_GITHUB_TOKEN: 'offline-dummy-not-a-credential', RUNNER_TEMP: runnerTemp,
+              FIXTURE_CALLED: called }, encoding: 'utf8'
+          });
+          assert.equal(result.status, 1);
+          assert.equal(fs.existsSync(called), false);
+          assert.equal(fs.existsSync(path.join(runnerTemp, 'squad-runtime', 'copilot-home')), false);
         }
       });
     }
@@ -1667,6 +1844,7 @@ async function run() {
     write(path.join(process.env.HANDOFF_DIR, 'squad-watch.patch'), '');
     write(path.join(process.env.HANDOFF_DIR, 'handoff.json'), JSON.stringify({
       schemaVersion: 1, ...p.execution(request), status: 'no-change', baseSha,
+      maxAiCredits: request.maxAiCredits, uncappedDiagnostic: request.uncappedDiagnostic,
       issue: request.issue, subSquad: request.subSquad, patchSha256: p.digest(''), files: []
     }));
     assert.throws(() => apply.validateArtifact(request, cfg, process.env.HANDOFF_DIR),
@@ -1675,7 +1853,8 @@ async function run() {
 
   const workflow = fs.readFileSync(path.join(original, '.github/workflows/squad-watch.yml'), 'utf8');
   assert(workflow.includes("vars.SQUAD_WATCH_ENABLED == 'true'"));
-  assert(workflow.includes('blank uses 90'));
+  assert(workflow.includes('blank=90'));
+  assert(workflow.includes('Exact unset removes native ceiling for generation AND review'));
   assert(!/^\s*(push|schedule|pull_request_target|pull_request|issue_comment|workflow_run):/m.test(workflow));
   for (const match of workflow.matchAll(/uses:\s+(\S+)/g)) assert(/@[0-9a-f]{40}$/.test(match[1]));
   const interpreter = workflow.split('\n  interpret:')[1].split('\n  apply:')[0];

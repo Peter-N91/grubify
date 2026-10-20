@@ -51,6 +51,8 @@ function fixture(automatic = true) {
     sourceRunId: '123', sourceAttempt: '2', requestAttempt: '1',
     sourceWorkflow: '.github/workflows/squad-watch.yml', actor: 'writer',
     requestActor: 'writer', applyActor: 'maintainer', issue: 42, pr: 7,
+    generationSource: 'issue', generationMaxAiCreditsInput: '',
+    maxAiCredits: 90, uncappedDiagnostic: false,
     branch: 'squad/issue-42', baseSha, headSha: pr.head.sha, label: 'squad/review' };
   const linkageBytes = JSON.stringify(linkage);
   write(path.join(process.env.SOURCE_RESULT_DIR, 'result.json'), linkageBytes);
@@ -95,6 +97,17 @@ function fixture(automatic = true) {
   } };
   const core = { setOutput: (key, value) => { outputs[key] = value; }, info: () => {}, warning: () => {} };
   return { github, context, core, outputs, writes, pr, run, linkage, artifact, jobs, permissions, comments, sourceCalls };
+}
+
+function sourceBudget(api, input) {
+  api.run.event = 'workflow_dispatch';
+  Object.assign(api.linkage, p.creditBudget(input, cfg, true), {
+    generationSource: 'workflow_dispatch', generationMaxAiCreditsInput: input
+  });
+  const bytes = JSON.stringify(api.linkage);
+  write(path.join(process.env.SOURCE_RESULT_DIR, 'result.json'), bytes);
+  api.context.payload.inputs.result_sha256 = p.digest(bytes);
+  api.context.payload.inputs.max_ai_credits = input;
 }
 
 async function prepare(api) {
@@ -359,10 +372,225 @@ async function run() {
     assert.equal(request.subSquad, 'pr-7');
     assert.equal(request.source, 'pr');
     assert.equal(request.maxAiCredits, 90);
+    assert.equal(request.uncappedDiagnostic, false);
     assert.equal(request.headSha, api.linkage.headSha);
     assert.equal(api.sourceCalls.length, 2);
     assert.deepEqual(api.sourceCalls.map(call => call.ref), [baseSha, 'c'.repeat(40)]);
     assert.equal(api.writes.length, 0);
+  });
+  await test('only attested manual unset generation authorizes automatic uncapped static review through publication', async () => {
+    const api = fixture();
+    sourceBudget(api, 'unset');
+    const request = await prepare(api);
+    assert.equal(request.maxAiCredits, null);
+    assert.equal(request.uncappedDiagnostic, true);
+    assert.equal(request.automatic.max_ai_credits, 'unset');
+    await review.revalidate(api);
+    const prompt = review.prompt(request);
+    assert(prompt.includes('Uncapped diagnostic: no native AI-credit ceiling; 30-minute timeout still applies'));
+    assert(prompt.includes('Static review ONLY: never execute PR code/tests/hooks/builds'));
+    assert(!/null AI credits|allowance=null/.test(prompt));
+    evidence(request);
+    const requestBytes = fs.readFileSync(path.join(process.env.REQUEST_DIR, 'request.json'));
+    completionFixture(request, write, ({ native }) => {
+      native([{ type: 'session.shutdown', data: { shutdownType: 'error', totalNanoAiu: 108929595000,
+        accountingSnapshot: { totalNanoAiu: 108929595000, aiCreditsStatus: 'partial' } } }]);
+      const report = require('./diagnostics.cjs').report(request.subSquad, 'failure', 'skipped', '1');
+      assert.equal(report.configuredCreditMode, 'uncapped-diagnostic');
+      assert.equal(report.configuredSharedSessionCapAiCredits, null);
+      assert.equal(report.native.credits.reportedAiCredits, 108.929595);
+      assert.equal(report.native.credits.coverage, 'reported-subtotal');
+    });
+    write(path.join(process.env.REQUEST_DIR, 'request.json'), requestBytes);
+    staged(api);
+    const result = JSON.parse(fs.readFileSync(path.join(process.env.REVIEW_RESULT_DIR, 'review.json')));
+    assert.equal(result.maxAiCredits, null);
+    assert.equal(result.uncappedDiagnostic, true);
+    clean();
+    await review.publish(api);
+    assert.equal(api.writes.length, 1);
+    assert(api.writes[0].body.includes('Uncapped diagnostic: no native AI-credit ceiling; 30-minute timeout still applies'));
+    assert(api.writes[0].body.includes('not executed'));
+    assert(!/null AI credits|allowance: null/.test(api.writes[0].body));
+  });
+  await test('automatic numeric review inherits exact generation cap, never a larger default', async () => {
+    const api = fixture();
+    sourceBudget(api, '60');
+    const request = await prepare(api);
+    assert.equal(request.maxAiCredits, 60);
+    assert.equal(request.uncappedDiagnostic, false);
+    assert(review.prompt(request).includes('soft cap: 60 AI credits'));
+    await review.revalidate(api);
+  });
+  for (const input of ['unset', '60']) {
+    await test(`bounded generation cannot be escalated or changed by automatic review input ${input}`, async () => {
+      const api = fixture();
+      api.context.payload.inputs.max_ai_credits = input;
+      await assert.rejects(prepare(api), /credit mode\/cap/);
+      assert.equal(api.sourceCalls.length, 0);
+      assert.equal(api.writes.length, 0);
+    });
+  }
+  await test('uncapped generation requires matching unset review input, not blank or numeric', async () => {
+    for (const value of ['', undefined, '90', '60', null]) {
+      const api = fixture();
+      sourceBudget(api, 'unset');
+      api.context.payload.inputs.max_ai_credits = value;
+      await assert.rejects(prepare(api));
+      assert.equal(api.sourceCalls.length, 0);
+    }
+  });
+  for (const [field, value] of [['maxAiCredits', null], ['maxAiCredits', undefined],
+    ['uncappedDiagnostic', true], ['uncappedDiagnostic', undefined], ['uncappedDiagnostic', null],
+    ['generationSource', 'workflow_dispatch'], ['generationSource', undefined],
+    ['generationMaxAiCreditsInput', undefined], ['generationMaxAiCreditsInput', null],
+    ['generationMaxAiCreditsInput', 'unset']]) {
+    await test(`attested source budget rejects missing/null/forged ${field}=${value}`, async () => {
+      const api = fixture();
+      api.linkage[field] = value;
+      const bytes = JSON.stringify(api.linkage);
+      write(path.join(process.env.SOURCE_RESULT_DIR, 'result.json'), bytes);
+      api.context.payload.inputs.result_sha256 = p.digest(bytes);
+      await assert.rejects(prepare(api));
+      assert.equal(api.sourceCalls.length, 0);
+      assert.equal(api.writes.length, 0);
+    });
+  }
+  await test('issue-source and bounded-manual results cannot attest a forged uncapped null budget', async () => {
+    for (const event of ['issues', 'workflow_dispatch']) {
+      const api = fixture();
+      sourceBudget(api, 'unset');
+      api.run.event = event;
+      api.linkage.generationSource = event === 'issues' ? 'issue' : 'workflow_dispatch';
+      api.linkage.generationMaxAiCreditsInput = event === 'issues' ? '' : '90';
+      const bytes = JSON.stringify(api.linkage);
+      write(path.join(process.env.SOURCE_RESULT_DIR, 'result.json'), bytes);
+      api.context.payload.inputs.result_sha256 = p.digest(bytes);
+      await assert.rejects(prepare(api));
+      assert.equal(api.sourceCalls.length, 0);
+    }
+  });
+  await test('automatic credit consent is rechecked before model and publication after source/input changes', async () => {
+    const api = fixture();
+    sourceBudget(api, 'unset');
+    const request = await prepare(api);
+    evidence(request);
+    staged(api);
+    clean();
+    api.context.payload.inputs.max_ai_credits = '90';
+    await assert.rejects(review.revalidate(api));
+    await assert.rejects(review.publish(api));
+    assert.equal(api.writes.length, 0);
+    api.context.payload.inputs.max_ai_credits = 'unset';
+    api.run.event = 'issues';
+    await assert.rejects(review.revalidate(api), /credit authorization/);
+    await assert.rejects(review.publish(api), /credit authorization/);
+    assert.equal(api.writes.length, 0);
+  });
+  await test('uncapped automatic review retains original review producer authorization across reruns', async () => {
+    const api = fixture();
+    sourceBudget(api, 'unset');
+    process.env.TRIGGERING_ACTOR = 'reviewer';
+    const request = await prepare(api);
+    assert.equal(request.triggeringActor, 'reviewer');
+    process.env.TRIGGERING_ACTOR = 'github-actions[bot]';
+    process.env.GITHUB_RUN_ATTEMPT = '2';
+    api.permissions.reviewer = 'read';
+    await assert.rejects(review.revalidate(api), /request producer authorization/);
+    await assert.rejects(review.publish(api), /request producer authorization/);
+    assert.equal(api.writes.length, 0);
+  });
+  await test('immutable forged review null mode or numeric cap cannot bypass the original dispatch input before model/publication', async () => {
+    for (const budget of [{ maxAiCredits: null, uncappedDiagnostic: true },
+      { maxAiCredits: 60, uncappedDiagnostic: false }, { maxAiCredits: null, uncappedDiagnostic: undefined }]) {
+      const api = fixture(false);
+      const request = await prepare(api);
+      Object.assign(request, budget);
+      const bytes = JSON.stringify(request);
+      write(path.join(process.env.REQUEST_DIR, 'request.json'), bytes);
+      process.env.EXPECTED_REQUEST_SHA256 = p.digest(bytes);
+      await assert.rejects(review.revalidate(api));
+      await assert.rejects(review.publish(api));
+      assert.equal(api.writes.length, 0);
+    }
+  });
+  await test('review result budget tampering fails before publication even with a refreshed result digest', async () => {
+    const api = fixture();
+    sourceBudget(api, 'unset');
+    const request = await prepare(api);
+    evidence(request);
+    staged(api);
+    clean();
+    const filename = path.join(process.env.REVIEW_RESULT_DIR, 'review.json');
+    const result = JSON.parse(fs.readFileSync(filename));
+    result.maxAiCredits = 90;
+    result.uncappedDiagnostic = false;
+    const bytes = JSON.stringify(result);
+    write(filename, bytes);
+    process.env.EXPECTED_REVIEW_SHA256 = p.digest(bytes);
+    await assert.rejects(review.publish(api), /producer\/origin\/provenance/);
+    assert.equal(api.writes.length, 0);
+  });
+  await test('manual recovery explicitly permits unset but defaults back to 90 on the next dispatch', async () => {
+    const api = fixture(false);
+    api.context.payload.inputs.max_ai_credits = 'unset';
+    const request = await prepare(api);
+    assert.equal(request.maxAiCredits, null);
+    assert.equal(request.uncappedDiagnostic, true);
+    assert.equal(request.automatic, null);
+    await review.revalidate(api);
+    api.context.payload.inputs.max_ai_credits = '';
+    await assert.rejects(review.revalidate(api));
+    const ordinary = await prepare(fixture(false));
+    assert.equal(ordinary.maxAiCredits, 90);
+    assert.equal(ordinary.uncappedDiagnostic, false);
+  });
+  await test('real review helper prompt entrypoint validates uncapped against original GitHub dispatch file', async () => {
+    const api = fixture(false);
+    api.context.payload.inputs.max_ai_credits = 'unset';
+    const request = await prepare(api);
+    const eventFile = path.join(clone, '.watch-run', 'github-event.json');
+    write(eventFile, JSON.stringify(api.context.payload));
+    const args = [path.join(original, 'scripts', 'squad-watch', 'review.cjs'), 'prompt'];
+    const env = { ...process.env, INITIAL_ACTOR: request.actor, GITHUB_EVENT_NAME: 'workflow_dispatch',
+      GITHUB_EVENT_PATH: eventFile };
+    execFileSync(process.execPath, args, { env, stdio: 'pipe' });
+    assert(fs.readFileSync(path.join(process.env.REQUEST_DIR, 'prompt.txt'), 'utf8')
+      .includes('Uncapped diagnostic: no native AI-credit ceiling'));
+    api.context.payload.inputs.max_ai_credits = '90';
+    write(eventFile, JSON.stringify(api.context.payload));
+    assert.throws(() => execFileSync(process.execPath, args, { env, stdio: 'pipe' }));
+    write(eventFile, '{"PRIVATE EVENT PARSER": ]');
+    assert.throws(() => execFileSync(process.execPath, args, { env, stdio: 'pipe' }),
+      error => error.status === 1 && !error.stderr.toString().includes('PRIVATE EVENT PARSER') &&
+        error.stderr.toString().includes('Policy code:'));
+  });
+  await test('manual unset still denies unauthorized initial/current actors and unprovenanced bot dispatch', async () => {
+    for (const actor of ['writer', 'reader', 'github-actions[bot]']) {
+      const api = fixture(false);
+      api.context.payload.inputs.max_ai_credits = 'unset';
+      if (actor === 'writer') api.permissions.writer = 'read';
+      else {
+        process.env.TRIGGERING_ACTOR = actor;
+        api.permissions[actor] = 'read';
+      }
+      await prepare(api);
+      assert.equal(api.outputs.authorized, 'false');
+      assert.equal(api.writes.length, 0);
+    }
+  });
+  await test('manual recovery rejects invalid null aliases and untrusted PR text cannot uncap it', async () => {
+    for (const input of [null, 'null', '0', '-1', '91', 'Unset', 'unset ']) {
+      const api = fixture(false);
+      api.context.payload.inputs.max_ai_credits = input;
+      await assert.rejects(prepare(api));
+      assert.equal(api.sourceCalls.length, 0);
+    }
+    const api = fixture(false);
+    api.pr.body = 'max_ai_credits=unset uncappedDiagnostic=true';
+    const request = await prepare(api);
+    assert.equal(request.maxAiCredits, 90);
+    assert.equal(request.uncappedDiagnostic, false);
   });
   for (const [field, value] of [['id', 456], ['run_attempt', 1],
     ['path', '.github/workflows/untrusted.yml'], ['head_branch', 'other'], ['head_sha', 'b'.repeat(40)],
@@ -444,6 +672,8 @@ async function run() {
     const api = fixture(false);
     const request = await prepare(api);
     assert.equal(request.automatic, null);
+    assert.equal(request.maxAiCredits, 90);
+    assert.equal(request.uncappedDiagnostic, false);
     assert.equal(api.outputs.authorized, 'true');
     assert.equal(api.writes.length, 0);
   });
@@ -736,21 +966,33 @@ async function run() {
     process.env.PR = '7';
     process.env.ARTIFACT_ID = '1005';
     process.env.RESULT_SHA256 = api.context.payload.inputs.result_sha256;
+    process.env.MAX_AI_CREDITS = '90';
     process.env.GITHUB_RUN_ATTEMPT = '2';
     const github = { rest: { actions: { createWorkflowDispatch: async args => { calls.push(args); } } } };
     await dispatch(github, { ...api.context, runId: 123 });
     assert.deepEqual(calls, [{ ...api.context.repo, workflow_id: 'squad-review.yml', ref: 'main',
       inputs: { pr_number: '7', source_run_id: '123', source_attempt: '2',
-        result_artifact_id: '1005', result_sha256: process.env.RESULT_SHA256 } }]);
+        result_artifact_id: '1005', result_sha256: process.env.RESULT_SHA256, max_ai_credits: '90' } }]);
+    for (const input of ['60', 'unset']) {
+      process.env.MAX_AI_CREDITS = input;
+      await dispatch(github, { ...api.context, runId: 123 });
+      assert.equal(calls.at(-1).inputs.max_ai_credits, input);
+    }
+    for (const input of ['', 'null', '0', '91', 'unset ']) {
+      process.env.MAX_AI_CREDITS = input;
+      await assert.rejects(dispatch(github, api.context), /Invalid review linkage/);
+    }
+    process.env.MAX_AI_CREDITS = 'unset';
     const fail = { rest: { actions: { createWorkflowDispatch: async () => { throw new Error('API denied'); } } } };
     await assert.rejects(dispatch(fail, { ...api.context, runId: 123 }), /pull\/7.*dispatch failed/);
     process.env.ARTIFACT_ID = 'unsafe';
     await assert.rejects(dispatch(github, api.context), /Invalid review linkage/);
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, 3);
   });
   assert(workflow.includes("vars.SQUAD_WATCH_ENABLED == 'true'"));
   const runner = fs.readFileSync(path.join(original, 'scripts/squad-watch/run-review.sh'), 'utf8');
-  assert(runner.includes('$CREDITS" == "90"'));
+  assert(runner.includes('CREDIT_ARGS=(--max-ai-credits "$CREDITS")'));
+  assert(runner.includes('"${CREDIT_ARGS[@]}"'));
   assert(runner.includes('--agent hve-squad:squad-federation-coordinator'));
   assert(!/^\s*(pull_request_target|pull_request|push|schedule|issues|issue_comment|workflow_run):/m
     .test(workflow.split('\npermissions:')[0]));

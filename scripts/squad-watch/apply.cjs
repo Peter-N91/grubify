@@ -23,6 +23,7 @@ function validateArtifact(request, cfg, directory) {
     manifest.triggeringActor.length > 0, 'Handoff producer provenance mismatch');
   p.check(manifest.schemaVersion === 1 && manifest.baseSha === request.baseSha &&
     manifest.issue === request.issue && manifest.subSquad === request.subSquad &&
+    p.creditInput(manifest, cfg) === p.creditInput(request, cfg) &&
     manifest.patchSha256 === p.digest(patch), 'Artifact contract/integrity mismatch');
   p.check(Array.isArray(manifest.files) && manifest.files.length <= cfg.maximumFiles, 'Invalid manifest paths');
   p.check(p.git(['rev-parse', 'HEAD']).toString().trim() === request.baseSha &&
@@ -63,14 +64,14 @@ function body(request, evidence) {
     'Opened unattended by **Squad Watch**. This is a **DRAFT**, not approval to merge or deploy.',
     'Human review is the final-outcome validation surface. No automatic merge/release/deployment exists.', '',
     'The trusted apply job adds `squad/review` to this draft and explicitly dispatches',
-    'a separate pr-N Squad coordinator for bounded static source review. Bot-generated',
+    'a separate pr-N Squad coordinator for size-bounded static source review. Bot-generated',
     'label events alone do not start that workflow. Its report is a comment, never approval.',
-    'That second session has its own 90-credit native soft allowance (not a hard/USD cap).', '',
+    `That second independent session inherits this authorized credit mode/cap: ${p.creditNotice(request)}`, '',
     `RPI pipeline: **${evidence.pipeline.status}**; inspect \`${evidence.root}pipeline.json\`.`,
     'Ordered cast dispatch and serialized Scribe handoffs were checked against runtime lifecycle events.', '',
     `Source: ${request.ref}; actor: ${request.actor}; event: ${request.eventId}.`,
     `Base: \`${request.baseSha}\`; model: \`${request.model}\`.`,
-    `Native shared session soft cap: ${request.maxAiCredits} AI credits (may overshoot as responses return; NOT USD/tokens).`,
+    p.creditNotice(request),
     `Run: https://github.com/${request.repository}/actions/runs/${request.runId}`, '',
     `Event state: \`${evidence.root}state.json\``,
     `Outcome/acceptance/limitations: \`${evidence.root}decisions.md\``,
@@ -143,6 +144,11 @@ module.exports = async function apply({ github, context, core }) {
     actor: request.actor, requestActor: request.triggeringActor,
     applyActor: process.env.TRIGGERING_ACTOR,
     requestAttempt: request.runAttempt,
+    generationSource: request.source,
+    generationMaxAiCreditsInput: context.eventName === 'workflow_dispatch'
+      ? context.payload.inputs?.max_ai_credits ?? '' : '',
+    maxAiCredits: request.maxAiCredits,
+    uncappedDiagnostic: request.uncappedDiagnostic,
     issue: request.issue, pr: pr.number, branch: request.branch,
     baseSha: request.baseSha, headSha: newCommit.sha, label: cfg.review.label
   };
@@ -150,6 +156,7 @@ module.exports = async function apply({ github, context, core }) {
   fs.mkdirSync(process.env.RESULT_DIR, { recursive: true });
   fs.writeFileSync(path.join(process.env.RESULT_DIR, 'result.json'), bytes);
   core.setOutput('pr', String(pr.number));
+  core.setOutput('review_max_ai_credits', p.creditInput(request, cfg));
   core.setOutput('result_sha256', p.digest(bytes));
   core.setOutput('result_artifact', `squad-result-${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}`);
   core.setOutput('status', 'draft-created');

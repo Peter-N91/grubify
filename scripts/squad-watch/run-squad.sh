@@ -6,9 +6,12 @@ if [[ -z "${COPILOT_GITHUB_TOKEN:-}" ]]; then
   exit 1
 fi
 MODEL="$(node -e "process.stdout.write(require('./.watch-run/request.json').model)")"
-CREDITS="$(node -e "process.stdout.write(String(require('./.watch-run/request.json').maxAiCredits))")"
-[[ "$MODEL" == "claude-sonnet-5" && "$CREDITS" =~ ^[0-9]+$ ]]
-(( CREDITS >= 30 && CREDITS <= 90 ))
+CREDITS="$(node -e "const p=require(process.env.RUNNER_TEMP+'/squad-runtime/helper/policy.cjs'); process.stdout.write(p.creditInput(require('./.watch-run/request.json')))")"
+[[ "$MODEL" == "claude-sonnet-5" ]]
+CREDIT_ARGS=()
+if [[ "$CREDITS" != "unset" ]]; then
+  CREDIT_ARGS=(--max-ai-credits "$CREDITS")
+fi
 
 # Only the Requests-only credential reaches the CLI. Its tool subprocesses
 # receive no copy of that secret. No raw CLI output/session artifact is published.
@@ -32,7 +35,7 @@ timeout --signal=TERM --kill-after=30s 30m \
     --agent hve-squad:squad-federation-coordinator \
     --session-id "$SESSION_ID" \
     --model "$MODEL" \
-    --max-ai-credits "$CREDITS" \
+    "${CREDIT_ARGS[@]}" \
     --no-ask-user \
     --disable-builtin-mcps \
     --secret-env-vars=COPILOT_GITHUB_TOKEN \

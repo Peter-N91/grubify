@@ -117,6 +117,13 @@ function readResult(inputs) {
   return JSON.parse(p.text(bytes));
 }
 
+function requestedBudget(context, cfg) {
+  return p.creditBudget(context.payload.inputs?.max_ai_credits, {
+    defaultAiCredits: cfg.review.defaultAiCredits,
+    maximumAiCredits: cfg.review.maximumAiCredits
+  }, context.eventName === 'workflow_dispatch');
+}
+
 async function provenance(github, context, cfg, inputs, baseSha, pr) {
   const run = await sourceRun(github, context, cfg, inputs, baseSha);
   const result = readResult(inputs);
@@ -130,6 +137,16 @@ async function provenance(github, context, cfg, inputs, baseSha, pr) {
     result.baseSha === pr.base.sha && result.baseSha === baseSha &&
     result.label === cfg.review.label && pr.draft === true,
   'Source result does not match actual generated draft PR');
+  // Only a successful trusted apply can attest the original generation input.
+  // Legacy artifacts without this attestation require human bounded recovery.
+  p.check(result.generationSource === (run.event === 'workflow_dispatch' ? 'workflow_dispatch' : 'issue') &&
+    typeof result.generationMaxAiCreditsInput === 'string' &&
+    (run.event === 'workflow_dispatch' || result.generationMaxAiCreditsInput === ''),
+  'Source generation credit authorization is missing or mismatched');
+  p.check(p.creditInput(result, cfg) === p.creditInput(p.creditBudget(
+    result.generationMaxAiCreditsInput, cfg, run.event === 'workflow_dispatch'), cfg) &&
+    p.creditInput(result, cfg) === p.creditInput(requestedBudget(context, cfg), cfg),
+  'Review credit mode/cap must exactly match attested generation authorization');
   p.check(await p.authorized(github, context.repo,
     [result.actor, result.requestActor, result.applyActor]), 'Unauthorized generation producer actor');
   const { data: commit } = await github.rest.git.getCommit({ ...context.repo, commit_sha: result.headSha });
@@ -208,6 +225,7 @@ async function prepare({ github, context, core }) {
   const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: number });
   validPR(pr, cfg);
   p.check(pr.number === number, 'PR identity mismatch');
+  const budget = requestedBudget(context, cfg);
   if (automatic) await provenance(github, context, cfg, automatic, baseSha, pr);
   const request = {
     schemaVersion: 1, repository: cfg.repository, pr: number, prId: pr.id,
@@ -216,8 +234,7 @@ async function prepare({ github, context, core }) {
     source: 'pr', eventId: `pull_request:${pr.id}`,
     actor: context.actor, triggeringActor: process.env.TRIGGERING_ACTOR,
     runId: String(context.runId), runAttempt: process.env.GITHUB_RUN_ATTEMPT,
-    model: cfg.model, maxAiCredits: p.credits('', {
-      defaultAiCredits: cfg.review.defaultAiCredits, maximumAiCredits: cfg.review.maximumAiCredits }),
+    model: cfg.model, ...budget,
     automatic: automatic || null
   };
   if (await duplicate(github, context.repo, request)) {
@@ -258,7 +275,8 @@ function readRequest(context) {
     request.ref === `${cfg.repository}#${request.pr}` &&
     request.eventId === `pull_request:${p.integer(request.prId, 'PR identity')}` &&
     request.source === 'pr' && request.actor === context.actor &&
-    request.model === cfg.model && request.maxAiCredits === cfg.review.defaultAiCredits,
+    request.model === cfg.model &&
+    p.creditInput(request, cfg) === p.creditInput(requestedBudget(context, cfg), cfg),
   'Review request producer/provenance/configuration mismatch');
   p.integer(process.env.EXPECTED_REQUEST_ARTIFACT_ID, 'review request artifact ID');
   sha(request.headSha);
@@ -281,7 +299,13 @@ async function revalidate({ github, context, core }) {
   p.check(pr.id === request.prId && pr.head.sha === request.headSha &&
     pr.head.ref === request.headBranch && pr.base.sha === request.prBaseSha &&
     pr.draft === request.draft, 'Stale PR head/base/draft; refusing misleading review');
-  if (automatic) await provenance(github, context, cfg, automatic, request.baseSha, pr);
+  if (automatic) {
+    await provenance(github, context, cfg, automatic, request.baseSha, pr);
+    p.check(typeof request.triggeringActor === 'string' && request.triggeringActor.length > 0 &&
+      await p.authorized(github, context.repo,
+        [request.triggeringActor].filter(actor => actor !== 'github-actions[bot]')),
+    'Review request producer authorization changed');
+  }
   else p.check(await p.authorized(github, context.repo,
     [request.actor, request.triggeringActor, process.env.TRIGGERING_ACTOR]),
   'Review collaborator authorization changed');
@@ -354,7 +378,7 @@ function prompt(request) {
     'Report artifact presence honestly; it is not cryptographic proof of actual dispatch.',
     'No raw CLI transcripts/logs, secrets, private addresses or cloud/private IDs.',
     `PR=${request.pr}, PR base=${request.prBaseSha}, head=${request.headSha}.`,
-    `Native shared-session soft allowance=${request.maxAiCredits}, NOT USD/hard cap.`,
+    p.creditNotice(request),
     'Do not change request/snapshot/config/helpers/manifests/assets/.git. No fallback',
     'model, extra allowance, continuation or live impactful action is authorized.'
   ].join('\n') + '\n';
@@ -450,7 +474,9 @@ function stage(context) {
   const result = { schemaVersion: 1, requestSha256: process.env.EXPECTED_REQUEST_SHA256,
     requestAttempt: request.runAttempt, runId: request.runId,
     runAttempt: process.env.GITHUB_RUN_ATTEMPT, producerActor: process.env.TRIGGERING_ACTOR,
-    pr: request.pr, headSha: request.headSha, report, audit, dispatch };
+    pr: request.pr, headSha: request.headSha,
+    maxAiCredits: request.maxAiCredits, uncappedDiagnostic: request.uncappedDiagnostic,
+    report, audit, dispatch };
   const bytes = JSON.stringify(result, null, 2) + '\n';
   p.check(Buffer.byteLength(bytes) <= cfg.review.maximumAuditBytes, 'Review audit exceeds aggregate cap');
   fs.mkdirSync(process.env.REVIEW_RESULT_DIR, { recursive: true });
@@ -466,7 +492,7 @@ function body(request, report, cfg, journal) {
     'Dynamic tests/builds were **not executed**. Draft/readiness and branch are unchanged.',
     `Review run: https://github.com/${cfg.repository}/actions/runs/${request.runId}`,
     ...(request.automatic ? [`Generation source: https://github.com/${cfg.repository}/actions/runs/${request.automatic.source_run_id} (apply attempt ${request.automatic.source_attempt}).`] : []),
-    `Independent event member: \`${request.subSquad}\`; native session soft allowance: ${request.maxAiCredits} (may overshoot; not USD).`,
+    `Independent event member: \`${request.subSquad}\`. ${p.creditNotice(request)}`,
     'Sanitized review/domain/role-history artifact retains one day; no CLI transcripts.',
     'Full review-preparation RPI artifacts and ordered cast/Scribe runtime lifecycle events were checked.',
     'Runtime dispatch is not proof of source-level correctness; human validation remains required.',
@@ -500,6 +526,7 @@ async function publish({ github, context, core }) {
     result.runAttempt === process.env.EXPECTED_REVIEW_ATTEMPT &&
     result.requestAttempt === request.runAttempt &&
     result.requestSha256 === process.env.EXPECTED_REQUEST_SHA256 &&
+    p.creditInput(result, cfg) === p.creditInput(request, cfg) &&
     process.env.EXPECTED_REVIEW_ARTIFACT === `squad-review-result-${request.runId}-${producer}` &&
     result.pr === request.pr && result.headSha === request.headSha &&
     (request.automatic && result.producerActor === 'github-actions[bot]' ||
@@ -537,19 +564,21 @@ async function publish({ github, context, core }) {
 }
 
 if (require.main === module) {
-  const context = { runId: p.integer(process.env.GITHUB_RUN_ID, 'review run ID'), actor: process.env.INITIAL_ACTOR };
-  if (process.argv[2] === 'prompt') {
-    fs.writeFileSync(path.join(process.env.REQUEST_DIR, 'prompt.txt'), prompt(readRequest(context).request));
-  } else if (process.argv[2] === 'stage') {
-    try {
+  try {
+    const context = { runId: p.integer(process.env.GITHUB_RUN_ID, 'review run ID'),
+      actor: process.env.INITIAL_ACTOR, eventName: process.env.GITHUB_EVENT_NAME,
+      payload: JSON.parse(p.text(p.regularFile(process.env.GITHUB_EVENT_PATH, 150000))) };
+    if (process.argv[2] === 'prompt') {
+      fs.writeFileSync(path.join(process.env.REQUEST_DIR, 'prompt.txt'), prompt(readRequest(context).request));
+    } else if (process.argv[2] === 'stage') {
       const result = stage(context);
       fs.appendFileSync(process.env.GITHUB_OUTPUT,
         `result_sha256=${result.digest}\nartifact_name=${result.name}\nproducer_attempt=${result.attempt}\n`);
-    } catch (error) {
-      console.error(`::error::${require('./diagnostics.cjs').stageError(error)}`);
-      process.exitCode = 1;
-    }
-  } else throw new Error('Expected prompt or stage');
+    } else throw new Error('Expected prompt or stage');
+  } catch (error) {
+    console.error(`::error::${require('./diagnostics.cjs').stageError(error)}`);
+    process.exitCode = 1;
+  }
 }
 
 module.exports = { select, prepare, revalidate, stage, publish, sourceRun, provenance,

@@ -2,8 +2,12 @@
 set -euo pipefail
 test -n "${COPILOT_GITHUB_TOKEN:-}"
 MODEL="$(node -e "process.stdout.write(require('./.watch-run/request.json').model)")"
-CREDITS="$(node -e "process.stdout.write(String(require('./.watch-run/request.json').maxAiCredits))")"
-[[ "$MODEL" == "claude-sonnet-5" && "$CREDITS" == "90" ]]
+CREDITS="$(node -e "const p=require(process.env.RUNNER_TEMP+'/squad-runtime/helper/policy.cjs'); process.stdout.write(p.creditInput(require('./.watch-run/request.json')))")"
+[[ "$MODEL" == "claude-sonnet-5" ]]
+CREDIT_ARGS=()
+if [[ "$CREDITS" != "unset" ]]; then
+  CREDIT_ARGS=(--max-ai-credits "$CREDITS")
+fi
 unset GH_TOKEN GITHUB_TOKEN
 readonly REPO_ROOT="$PWD"
 export HVE_WATCH_REPO_ROOT="$REPO_ROOT"
@@ -23,7 +27,7 @@ timeout --signal=TERM --kill-after=30s 30m \
     --plugin-dir "$RUNTIME_PLUGIN" \
     --agent hve-squad:squad-federation-coordinator \
     --session-id "$SESSION_ID" \
-    --model "$MODEL" --max-ai-credits "$CREDITS" \
+    --model "$MODEL" "${CREDIT_ARGS[@]}" \
     --no-ask-user --disable-builtin-mcps \
     --secret-env-vars=COPILOT_GITHUB_TOKEN --log-level none \
     --allow-all-tools \
