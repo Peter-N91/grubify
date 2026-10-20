@@ -153,9 +153,15 @@ function diagnostics(sub) {
   try { bound = context(); p.check(bound.request.subSquad === sub, 'Wrong diagnostic member'); }
   catch { bound = undefined; }
   const value = inspect(sub, bound);
+  const facts = value.native.failures ? value.native : runtime.failureFacts().snapshot();
+  const cap = bound?.request.maxAiCredits;
   return { roleHistory: value.histories, pipeline: value.manifest,
+    diagnosticContext: bound ? 'bound' : 'unavailable',
+    configuredSharedSessionCapAiCredits: Number.isInteger(cap) && cap >= 30 && cap <= 90 ? cap : null,
     native: { availability: value.native.availability, completed: value.counts,
-      pending: value.native.pending }, completionHook: hookStats() };
+      pending: value.native.pending, failures: facts.failures, errors: facts.errors,
+      errorsTruncated: facts.errorsTruncated, aborts: facts.aborts, shutdowns: facts.shutdowns,
+      sessionLimit: facts.sessionLimit, credits: facts.credits }, completionHook: hookStats() };
 }
 
 module.exports = { read, presence, privateRoot, context, inspect, hookStats, diagnostics };

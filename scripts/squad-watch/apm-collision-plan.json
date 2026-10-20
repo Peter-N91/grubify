@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "apmVersion": "0.29.0",
+  "apmSourceCommit": "5ac6733d55cb4dbe81261491f573e48898c010b6",
+  "approvedManifestLfSha256": "9391e61256b6907a797e2dc7e5b156f0b4fab32c46271cb9a9170a4408f28427",
+  "approvedLockLfSha256": "8dbe09ddf1b8e3a5443ce8f0ac6813f10297c993ffc987b30a819b027ca76d9b",
+  "approvedDependencyCount": 315,
+  "groups": [
+    {
+      "target": "microsoft/hve-core-experiment-designer",
+      "repo": "microsoft/hve-core",
+      "commit": "18f5ac75a1556e49f1e90647a4816d17499e1d7f",
+      "contentHash": "sha256:ae69c18ffc39f207d3b9fcb1c10676118d14ac888dee747660294e9e76834863",
+      "manifest": "name: hve-core-experiment-designer\nversion: 1.0.0\ndescription: MVE tracking-artifact conventions for session directories, artifact names,\n  and file hygiene; routes MVE methodology to the experiment-design skill\nauthor: microsoft\n",
+      "members": [
+        {
+          "source": ".github/agents/experimental/experiment-designer.agent.md",
+          "destination": ".apm/agents/experiment-designer.agent.md",
+          "gitBlob": "b3aa0d6576d7cd79d8a66d16c39c70398e3ac877",
+          "bytes": 21870,
+          "sha256": "5a2e95fefb1d0555e5c07721305dbd2fd8ebe05281898768ea24ec9c908728f3"
+        },
+        {
+          "source": ".github/instructions/experimental/experiment-designer.instructions.md",
+          "destination": ".apm/instructions/experiment-designer.instructions.md",
+          "gitBlob": "8a8fe690ff07de085bface2f3918450b8a848bab",
+          "bytes": 2734,
+          "sha256": "d7bbd8739f9cbcc3be761b08dca66b5f21156cba1f29663c0c7a00e633277d62"
+        }
+      ]
+    },
+    {
+      "target": "microsoft/hve-core-git-merge",
+      "repo": "microsoft/hve-core",
+      "commit": "18f5ac75a1556e49f1e90647a4816d17499e1d7f",
+      "contentHash": "sha256:4bca0908fcbc28feba28a9c61e6409e6e52876060f0b476b623143ba07730d07",
+      "manifest": "name: hve-core-git-merge\nversion: 1.0.0\ndescription: Coordinate Git merge, rebase, and rebase --onto workflows with conflict\n  handling\nauthor: microsoft\n",
+      "members": [
+        {
+          "source": ".github/instructions/hve-core/git-merge.instructions.md",
+          "destination": ".apm/instructions/git-merge.instructions.md",
+          "gitBlob": "f41d84bf3dd9d69901479d11a70d44a5748fd706",
+          "bytes": 4519,
+          "sha256": "17171b12616dae76a79b0f747c79e796b0fb4e447875826b7300e65641114357"
+        },
+        {
+          "source": ".github/prompts/hve-core/git-merge.prompt.md",
+          "destination": ".apm/prompts/git-merge.prompt.md",
+          "gitBlob": "89c59a230b01f58dd36b2236ac61e7a5409c7394",
+          "bytes": 1072,
+          "sha256": "26f9f627bde237825b8018d6169643920b65da4a988a763e8812cbdc9dddb2c7"
+        }
+      ]
+    },
+    {
+      "target": "microsoft/hve-core-pptx",
+      "repo": "microsoft/hve-core",
+      "commit": "18f5ac75a1556e49f1e90647a4816d17499e1d7f",
+      "contentHash": "sha256:c818ed0a2579b337486ed581683663caff3c07e134deae10fd9555cf10d1563e",
+      "manifest": "name: hve-core-pptx\nversion: 1.0.0\ndescription: Create, update, or manage PowerPoint slide decks\nauthor: microsoft\n",
+      "members": [
+        {
+          "source": ".github/agents/experimental/pptx.agent.md",
+          "destination": ".apm/agents/pptx.agent.md",
+          "gitBlob": "d9511ce8c404d680b118659426fd2d6d20aa6e99",
+          "bytes": 12623,
+          "sha256": "aa35010b0b6ce0bf130ba3794df07413aa538d3d7f5ad089f8905f3e6a25dd96"
+        },
+        {
+          "source": ".github/instructions/experimental/pptx.instructions.md",
+          "destination": ".apm/instructions/pptx.instructions.md",
+          "gitBlob": "009e6ddc7d2609275dc2222c944b562c1039cf84",
+          "bytes": 9672,
+          "sha256": "1b2be3d347927ee97f9942a379c0824f8da0b4630aa568458798f66ab4251232"
+        },
+        {
+          "source": ".github/prompts/pptx.prompt.md",
+          "destination": ".apm/prompts/pptx.prompt.md",
+          "gitBlob": "173fe61e09b79c7351daf6a9b1b455b8dfc63e91",
+          "bytes": 1012,
+          "sha256": "545a618a0dc5396f0fdfbd48de94baf8c1cab89ea4ad475caadf2ae2fbb19c8a"
+        }
+      ]
+    },
+    {
+      "target": "microsoft/hve-core-sssc-planner",
+      "repo": "microsoft/hve-core",
+      "commit": "18f5ac75a1556e49f1e90647a4816d17499e1d7f",
+      "contentHash": "sha256:f6ce20c89964502194c117a6fc291d3c0d94a559d508aa7355b0ee9e86e8738c",
+      "manifest": "name: hve-core-sssc-planner\nversion: 1.0.0\ndescription: SSSC Planner identity, six-phase orchestration, state schema, session\n  recovery, and Phase 2-6 assessment protocols\nauthor: microsoft\n",
+      "members": [
+        {
+          "source": ".github/agents/security/sssc-planner.agent.md",
+          "destination": ".apm/agents/sssc-planner.agent.md",
+          "gitBlob": "c610a7e429a97f1189e9d2afb423b2924ed5f9b4",
+          "bytes": 26666,
+          "sha256": "e6e2892c46efdaa68c027f88851ffb196e03c1a8eeb175f5d474423e078ad9e5"
+        },
+        {
+          "source": ".github/instructions/security/sssc-planner.instructions.md",
+          "destination": ".apm/instructions/sssc-planner.instructions.md",
+          "gitBlob": "6fab833c03a8e55d64474a8344704536cf2766b2",
+          "bytes": 44301,
+          "sha256": "45c7098f754b0896d1d1d19cb5e95e1eed210f017e8278b4a3a8df73865972ef"
+        }
+      ]
+    },
+    {
+      "target": "Peter-N91/hve-squad-squad-document",
+      "repo": "Peter-N91/hve-squad",
+      "commit": "4c1f140f12f17abd3f200baa3afcb6d4c84bb6da",
+      "contentHash": "sha256:5d9c749e31b145ee3b65fa00d190ee1fa82bc20028d684dd1e78c2dd6d16655a",
+      "manifest": "name: hve-squad-squad-document\nversion: 1.0.0\ndescription: Searches squad state and artifacts to answer a user's question or produce\n  a focused document, then writes the result to a local file in the requested format\n  without the user needing to read decision logs, history files, or routing tables\n  directly\nauthor: Peter-N91\n",
+      "members": [
+        {
+          "source": "squad-src/.github/agents/squad/squad-document.agent.md",
+          "destination": ".apm/agents/squad-document.agent.md",
+          "gitBlob": "e479d3a7074549d7877939ab6176d6002452fd9f",
+          "bytes": 6486,
+          "sha256": "729d07e021ad5033b3a3153ba9f6084beeac31ff009a01520d548fb5e19c368a"
+        },
+        {
+          "source": "squad-src/.github/prompts/squad/squad-document.prompt.md",
+          "destination": ".apm/prompts/squad-document.prompt.md",
+          "gitBlob": "3dc43f2ce055f37f3829f97ab0e83684096e46e7",
+          "bytes": 1538,
+          "sha256": "efd043a4176d16fd4cc5f7c9a48c5564b1ab5eb7acec673cc8708cc795dab656"
+        }
+      ]
+    },
+    {
+      "target": "Peter-N91/hve-squad-squad-federation",
+      "repo": "Peter-N91/hve-squad",
+      "commit": "4c1f140f12f17abd3f200baa3afcb6d4c84bb6da",
+      "contentHash": "sha256:69ec18736a90f4f8eb7cca95e9560369b6b65104dbb959bb075b6785d365a74c",
+      "manifest": "name: hve-squad-squad-federation\nversion: 1.0.0\ndescription: Hands a request to the Squad Federation Coordinator, which routes it\n  to one or more named sub-squads and runs each scoped to its own squad root\nauthor: Peter-N91\n",
+      "members": [
+        {
+          "source": "squad-src/.github/instructions/squad/squad-federation.instructions.md",
+          "destination": ".apm/instructions/squad-federation.instructions.md",
+          "gitBlob": "dab6d7eb9f736acf1964ce24674df5e45f97df8d",
+          "bytes": 41418,
+          "sha256": "5f823622a8b53c25f22518413469cff5d36d52e4fa030a83b1857f5678ffea55"
+        },
+        {
+          "source": "squad-src/.github/prompts/squad/squad-federation.prompt.md",
+          "destination": ".apm/prompts/squad-federation.prompt.md",
+          "gitBlob": "e2508aefde30360cc1330d2af963512ae7742e8a",
+          "bytes": 8222,
+          "sha256": "3a6766fdc326a61dd4141c5945f35cc2f4528cb80a6c52861364ed10eacaada7"
+        }
+      ]
+    },
+    {
+      "target": "Peter-N91/hve-squad-squad-governance-report",
+      "repo": "Peter-N91/hve-squad",
+      "commit": "4c1f140f12f17abd3f200baa3afcb6d4c84bb6da",
+      "contentHash": "sha256:af49a30cd1b35723e09d084954a22ca7710a5a7b170c26772f24d3656e995f94",
+      "manifest": "name: hve-squad-squad-governance-report\nversion: 1.0.0\ndescription: Reads squad state artifacts and generates a self-contained HTML governance\n  dashboard with 7 sections covering governance gates, council verdicts, cost, role\n  dispatches, compliance, timeline, and key outcomes\nauthor: Peter-N91\n",
+      "members": [
+        {
+          "source": "squad-src/.github/agents/squad/squad-governance-report.agent.md",
+          "destination": ".apm/agents/squad-governance-report.agent.md",
+          "gitBlob": "68ed2a355fd282730e985beef339a536c988852c",
+          "bytes": 14844,
+          "sha256": "3b9d70fd3b21b87b154eb9fcf9126a5bcdedbb4a963d01ea3da361ad6a2bb582"
+        },
+        {
+          "source": "squad-src/.github/prompts/squad/squad-governance-report.prompt.md",
+          "destination": ".apm/prompts/squad-governance-report.prompt.md",
+          "gitBlob": "f553df3cbcba905980324c112da3080d475d1e97",
+          "bytes": 1366,
+          "sha256": "740ca94f36894c28853ab35cc198827a199896bfc10de5f42f9bf24a68060075"
+        }
+      ]
+    },
+    {
+      "target": "Peter-N91/hve-squad-squad-learn",
+      "repo": "Peter-N91/hve-squad",
+      "commit": "4c1f140f12f17abd3f200baa3afcb6d4c84bb6da",
+      "contentHash": "sha256:ded651872acb033df153a60c1ca3b0d92da5643e817d5450e8fdc5970966ba2f",
+      "manifest": "name: hve-squad-squad-learn\nversion: 1.0.0\ndescription: Drafts a sanitized, broadly applicable learning from consumer-local squad\n  memory and opens a pull request to promote it, targeting either the public hve-squad\n  package (cross-consumer) or your organization's tenant-internal learnings repository\nauthor: Peter-N91\n",
+      "members": [
+        {
+          "source": "squad-src/.github/agents/squad/squad-learn.agent.md",
+          "destination": ".apm/agents/squad-learn.agent.md",
+          "gitBlob": "a0affaa6dc7737598cba3106d77236380fa36461",
+          "bytes": 6237,
+          "sha256": "60576ffcaacb64894b1c06fc68e747c29470da6d6f5b352da4c6582abd22febe"
+        },
+        {
+          "source": "squad-src/.github/prompts/squad/squad-learn.prompt.md",
+          "destination": ".apm/prompts/squad-learn.prompt.md",
+          "gitBlob": "3dc4a15c7644ae5c5ab26698f9d608b97f4bf9f2",
+          "bytes": 1371,
+          "sha256": "abb035e5ad74cd65bc2ebd462d08e4d5df6651fe39e9492b9dc2328c25bcbb4a"
+        }
+      ]
+    }
+  ]
+}

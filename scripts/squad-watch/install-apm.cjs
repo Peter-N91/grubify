@@ -21,14 +21,24 @@ function install(apm, run = execFileSync) {
   const cfg = p.config();
   const inputs = ['apm.yml', 'apm.lock.yaml'].map(file => fs.readFileSync(file));
   verifyInputs(cfg, ...inputs);
+  const controlFiles = ['.github/squad-watch.json', path.join(__dirname, 'apm-collision-plan.json')];
+  const controls = controlFiles.map(file => fs.readFileSync(file));
+  function unchanged() {
+    ['apm.yml', 'apm.lock.yaml'].forEach((file, index) =>
+      p.check(inputs[index].equals(fs.readFileSync(file)), `APM rewrote ${file}; refusing runtime`));
+    controlFiles.forEach((file, index) =>
+      p.check(controls[index].equals(fs.readFileSync(file)), 'APM acquisition configuration changed; refusing runtime'));
+  }
   const options = { env: gitEnvironment(), stdio: 'inherit' };
   const version = run(apm, ['--version'], { ...options, stdio: 'pipe' }).toString();
   p.check(new RegExp(`CLI version ${cfg.upstream.apmVersion.replace(/\./g, '\\.')}\\b`).test(version),
     'Use the approved APM CLI version');
+  run(process.execPath, [path.join(__dirname, 'prewarm-apm.cjs')], { ...options, timeout: 480000 });
+  unchanged();
   run(apm, ['install', '--frozen', '--target', 'copilot'], options);
-  ['apm.yml', 'apm.lock.yaml'].forEach((file, index) =>
-    p.check(inputs[index].equals(fs.readFileSync(file)), `APM rewrote ${file}; refusing runtime`));
+  unchanged();
   run(apm, ['audit', '--ci'], options);
+  unchanged();
   for (const file of ['.github/agents/squad-federation-coordinator.agent.md',
     '.agents/skills/squad/SKILL.md']) {
     p.check(fs.statSync(file).size > 0, `Missing installed Squad asset: ${file}`);

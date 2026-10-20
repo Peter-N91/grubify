@@ -40,8 +40,8 @@ function report(sub, modelStep, handoffStep, exitCode) {
     classification: model !== 'success' ? 'coordinator-not-successful' :
       handoff === 'success' ? 'validated-handoff' :
         missing ? 'incomplete-audit' : 'handoff-rejected',
-    auditPresence, ...require('./progress.cjs').diagnostics(sub),
-    limitation: 'Presence is not dispatch proof. Credit exhaustion and past model behavior are unknown; raw output is not published.'
+    exitCause: 'unknown', auditPresence, ...require('./progress.cjs').diagnostics(sub),
+    limitation: 'Presence and retained failed-run counts are not usable dispatch proof. Typed observations do not establish the exit cause: upstream quota scope is unknown; autopilot_credit_limit is an objective cap, not the shared session cap. Cumulative reported AI credits are not summed, premium requests, tokens or money; unavailable coverage is not free usage. Raw output is not published.'
   };
 }
 

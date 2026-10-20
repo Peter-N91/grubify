@@ -198,6 +198,56 @@ async function run() {
       assert.deepEqual(completion.evaluate(input), {});
     });
   });
+  await test('independent review uses the same safe failure accounting and never accepts failed native proof', async () => {
+    const api = fixture(false);
+    const request = await prepare(api);
+    evidence(request);
+    completionFixture(request, write, ({ input, filename, native }) => {
+      const fixture = pipelineFixture(request, write);
+      fs.unlinkSync(path.join(process.env.RUNNER_TEMP, 'squad-runtime', 'dispatch.json'));
+      native([...fixture.events,
+        { type: 'session.error', data: { errorType: 'rate_limit', errorCode: 'user_model_rate_limited',
+          statusCode: 429, message: 'PRIVATE MESSAGE', providerErrorParam: 'PRIVATE PARAM' } },
+        { type: 'session.usage_checkpoint', data: { totalNanoAiu: 4e9,
+          accountingSnapshot: { totalNanoAiu: 4e9, aiCreditsStatus: 'partial' } } },
+        { type: 'session.shutdown', data: { shutdownType: 'error', totalNanoAiu: 5e9,
+          errorReason: 'PRIVATE REASON',
+          accountingSnapshot: { totalNanoAiu: 5e9, aiCreditsStatus: 'partial' } } }]);
+      const report = require('./diagnostics.cjs').report(request.subSquad, 'failure', 'skipped', '1');
+      assert.equal(report.native.availability, 'invalid');
+      assert.equal(report.native.completed['Squad Reviewer'], 1);
+      assert.equal(report.native.errors[0].code, 'user_model_rate_limited');
+      assert.equal(report.native.credits.reportedAiCredits, 5);
+      assert.equal(report.native.credits.coverage, 'reported-subtotal');
+      assert.equal(report.configuredSharedSessionCapAiCredits, 90);
+      assert.equal(report.exitCause, 'unknown');
+      assert(!JSON.stringify(report).includes('PRIVATE'));
+      assert(!require('./runtime.cjs').inspectEvents(filename, request).proof);
+      assert.equal(completion.evaluate(input).decision, 'block');
+      assert.throws(() => staged(api));
+    });
+    assert.equal(api.writes.length, 0);
+  });
+  await test('accounting warnings do not block genuine independent review dispatch or handoff', async () => {
+    const api = fixture(false);
+    const request = await prepare(api);
+    evidence(request);
+    await completionFixture(request, write, async ({ input, filename, native }) => {
+      const fixture = pipelineFixture(request, write);
+      native([...fixture.events, { type: 'session.usage_checkpoint',
+        data: { totalNanoAiu: 'PRIVATE INVALID AMOUNT' } }]);
+      const runtime = require('./runtime.cjs');
+      assert.equal(runtime.inspectEvents(filename, request).availability, 'valid');
+      assert.deepEqual(completion.evaluate(input), {});
+      const proofPath = path.join(process.env.RUNNER_TEMP, 'squad-runtime', 'dispatch.json');
+      fs.unlinkSync(proofPath);
+      await runtime.collect(filename, request, proofPath);
+      staged(api);
+      assert(!JSON.stringify(require('./diagnostics.cjs').report(request.subSquad,
+        'success', 'success', '0')).includes('PRIVATE'));
+    });
+    assert.equal(api.writes.length, 0);
+  });
   await test('genuine blocked PR may stop but cannot publish a completed report', async () => {
     const api = fixture(false);
     const request = await prepare(api);
