@@ -7,7 +7,8 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const p = require('./policy.cjs');
 const review = require('./review.cjs');
-const { pipelineFixture, consumptionBlock } = require('./test-fixtures.cjs');
+const { pipelineFixture, consumptionBlock, completionFixture } = require('./test-fixtures.cjs');
+const completion = require('./completion-gate.cjs');
 const original = process.cwd();
 const cfg = p.config();
 fs.mkdirSync(path.join(original, '.watch-validation'), { recursive: true });
@@ -161,6 +162,61 @@ async function run() {
   process.env.REVIEW_RESULT_DIR = path.join(directory, 'review-result');
   process.env.RUNNER_TEMP = path.join(directory, 'runner');
   process.env.GITHUB_RUN_ID = '456';
+  await test('PR bootstrap continues actual Research, keeping Implement static and both Scribe scopes separate', async () => {
+    const api = fixture(false);
+    const request = await prepare(api);
+    const { root } = evidence(request);
+    fs.unlinkSync(root + 'pipeline.json');
+    for (const agent of ['Squad Researcher', 'Squad Lead', 'Squad Implementor', 'Squad Reviewer']) {
+      fs.unlinkSync(root + `history/${agent}.md`);
+    }
+    completionFixture(request, write, ({ input, native, events }) => {
+      native(events(['hve-squad:squad-scribe', 'hve-squad:squad-scribe']));
+      const result = completion.evaluate(input);
+      assert.equal(result.decision, 'block');
+      assert(result.reason.includes('next actual Research'));
+      assert(result.reason.includes('no source edits or PR code/tests'));
+    });
+    const prompt = review.prompt(request);
+    assert(prompt.includes('PHASE 1 — BOOTSTRAP STATE ONLY'));
+    assert(prompt.includes('PHASE 2 — FINAL HANDOFF ONLY'));
+    assert(prompt.includes('exactly ONE payloadType and ONE'));
+    assert(prompt.includes('immediately dispatch Research'));
+    assert(prompt.includes('Implement executes that review-analysis plan'));
+    assert.throws(() => staged(api));
+    assert.equal(api.writes.length, 0);
+  });
+  await test('PR real role needs Scribe not redispatch; complete native review may stop', async () => {
+    const api = fixture(false);
+    const request = await prepare(api);
+    evidence(request);
+    completionFixture(request, write, ({ input, native, events }) => {
+      native(events(['hve-squad:squad-scribe', 'hve-squad:squad-researcher']));
+      assert(completion.evaluate(input).reason.includes('actual Research role already completed'));
+      const fixture = pipelineFixture(request, write);
+      native(fixture.events);
+      assert.deepEqual(completion.evaluate(input), {});
+    });
+  });
+  await test('genuine blocked PR may stop but cannot publish a completed report', async () => {
+    const api = fixture(false);
+    const request = await prepare(api);
+    evidence(request);
+    completionFixture(request, write, ({ input, native }) => {
+      const fixture = pipelineFixture(request, write);
+      fixture.journal.status = 'blocked';
+      fixture.journal.blockingReason = 'Synthetic cannot-confirm gate';
+      fixture.journal.stages = fixture.journal.stages.slice(0, 1);
+      write(fixture.root + 'pipeline.json', JSON.stringify(fixture.journal));
+      native(fixture.events.slice(0, 6));
+      const proof = require('./runtime.cjs').readProof();
+      proof.calls = proof.calls.slice(0, 3);
+      write(path.join(process.env.RUNNER_TEMP, 'squad-runtime', 'dispatch.json'), JSON.stringify(proof));
+      assert.deepEqual(completion.evaluate(input), {});
+      assert.throws(() => staged(api), /Blocked review/);
+    });
+    assert.equal(api.writes.length, 0);
+  });
   for (const [history, malformed, expected] of [
     ['history/Squad Reviewer.md', 'Synthetic Review artifact reviews/pipeline-fixture.txt\n' +
       consumptionBlock('#### Consumption', { model: '', model_source: '', basis: '' }), /per-stage consumption/],

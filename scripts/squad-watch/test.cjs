@@ -5,7 +5,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const p = require('./policy.cjs');
 const prepare = require('./prepare.cjs');
 const handoff = require('./handoff.cjs');
@@ -13,7 +13,9 @@ const diagnostics = require('./diagnostics.cjs');
 const apply = require('./apply.cjs');
 const pipeline = require('./pipeline.cjs');
 const runtime = require('./runtime.cjs');
-const { pipelineFixture, consumptionFixture, consumptionBlock } = require('./test-fixtures.cjs');
+const completion = require('./completion-gate.cjs');
+const progress = require('./progress.cjs');
+const { pipelineFixture, consumptionFixture, consumptionBlock, completionFixture } = require('./test-fixtures.cjs');
 const { verifyInputs } = require('./check-apm.cjs');
 const original = process.cwd();
 const cfg = p.config();
@@ -199,6 +201,256 @@ async function run() {
   process.env.RESULT_DIR = path.join(directory, 'result');
   process.env.RUNNER_TEMP = path.join(directory, 'runner');
   requestEnvironment(request);
+
+  await test('shared bootstrap requires only phase-correct scoped initialization, never future history', () => {
+    const contract = p.watchAuditContract(request).join('\n');
+    const init = contract.split('PHASE 2')[0];
+    assert(init.includes('Bootstrap does NOT require future role histories'));
+    assert(init.includes('exactly ONE payloadType and ONE'));
+    assert(init.includes('separate payloadType initialization'));
+    assert(init.includes('immediately dispatch Research'));
+    assert(!init.includes('history/autopilot-run-<id>.md'));
+    assert(pipeline.prompt(request).join('\n').includes('at least SIX'));
+  });
+  await test('bootstrap-only missing role history fails final handoff but root hook continues Research', () => {
+    fixtures(request);
+    const { root } = pipelineFixture(request, write);
+    fs.unlinkSync(root + 'pipeline.json');
+    for (const [, agent] of pipeline.stages) fs.unlinkSync(root + `history/${agent}.md`);
+    const scribe = fs.readFileSync(root + 'history/Squad Scribe.md');
+    fs.unlinkSync(root + 'history/Squad Scribe.md');
+    assert.throws(() => handoff.stage(request, cfg, process.env.HANDOFF_DIR), /Missing per-role dispatch history/);
+    const failed = diagnostics.report(request.subSquad, 'success', 'failure', '0');
+    assert(Object.values(failed.auditPresence).every(value => value.disk === 'regular' && value.index));
+    assert.equal(failed.roleHistory['Squad Scribe'], 'absent');
+    write(root + 'history/Squad Scribe.md', scribe);
+    p.git(['read-tree', 'HEAD']);
+    completionFixture(request, write, ({ input, native, events }) => {
+      native(events(['hve-squad:squad-scribe', 'hve-squad:squad-scribe']));
+      const result = completion.evaluate(input);
+      assert.equal(result.decision, 'block');
+      assert(result.reason.includes('next actual Research'));
+      assert(!result.reason.includes('reinitialize'));
+      const report = diagnostics.report(request.subSquad, 'success', 'failure', '0');
+      assert.equal(report.native.completed['Squad Scribe'], 2);
+      assert.equal(report.native.completed['Squad Researcher'], 0);
+      assert.equal(report.roleHistory['Squad Researcher'], 'absent');
+      assert.equal(report.pipeline.availability, 'absent');
+      assert.equal(report.completionHook.blocks, 1);
+    });
+  });
+  await test('missing member Scribe initialization asks only for member scope, not fabricated future history', () => {
+    fixtures(request);
+    const root = `.copilot-tracking/squad/members/${request.subSquad}/`;
+    fs.unlinkSync(root + 'history/Squad Scribe.md');
+    completionFixture(request, write, ({ input, native, events }) => {
+      native(events(['hve-squad:squad-scribe']));
+      assert(completion.evaluate(input).reason.includes('member-scoped initialization'));
+      fs.unlinkSync('.copilot-tracking/squad/federation.md');
+      assert(completion.evaluate(input).reason.includes('federation-scoped'));
+    });
+  });
+  await test('a natural stop before any child requests real bootstrap, never accepts empty native proof', () => {
+    completionFixture(request, write, ({ input, native }) => {
+      native([{ type: 'session.start', data: {} }, { type: 'assistant.message', data: { content: 'private' } }]);
+      assert(completion.evaluate(input).reason.includes('federation-scoped Scribe initialization'));
+      assert.equal(progress.inspect(request.subSquad, progress.context()).native.availability, 'incomplete');
+    });
+  });
+  await test('actual completed Research without Scribe evidence asks handoff, never repeats Research', () => {
+    fixtures(request);
+    const root = `.copilot-tracking/squad/members/${request.subSquad}/`;
+    fs.unlinkSync(root + 'pipeline.json');
+    fs.unlinkSync(root + 'history/Squad Researcher.md');
+    fs.unlinkSync(root + 'history/Squad Scribe.md');
+    completionFixture(request, write, ({ input, native, events }) => {
+      native(events(['hve-squad:squad-scribe', 'hve-squad:squad-scribe', 'hve-squad:squad-researcher']));
+      const result = completion.evaluate(input);
+      assert(result.reason.includes('actual Research role already completed'));
+      assert(result.reason.includes('payloadType history'));
+      assert(result.reason.includes('history/Squad Researcher.md'));
+      assert(result.reason.includes('history/Squad Scribe.md'));
+      assert(result.reason.includes('Do not reinitialize'));
+      assert(!result.reason.includes('next actual Research'));
+    });
+  });
+  await test('serialized verified Research advances Plan, malformed consumption requests Scribe repair', () => {
+    fixtures(request);
+    completionFixture(request, write, ({ input, native, events }) => {
+      native(events(['hve-squad:squad-scribe', 'hve-squad:squad-researcher', 'hve-squad:squad-scribe']));
+      assert(completion.evaluate(input).reason.includes('next actual Plan'));
+      write(`.copilot-tracking/squad/members/${request.subSquad}/history/Squad Researcher.md`,
+        'Research research/pipeline-fixture.txt without consumption');
+      assert(completion.evaluate(input).reason.includes('actual Research role already completed'));
+    });
+  });
+  await test('complete native four-stage evidence allows root stop without mutating Git or Squad files', () => {
+    fixtures(request);
+    completionFixture(request, write, ({ input, native }) => {
+      const { events } = pipelineFixture(request, write);
+      native(events);
+      const before = p.git(['diff', '--binary']).toString();
+      const index = fs.readFileSync('.git/index');
+      const audit = p.proposalPaths(cfg, request.subSquad).sort().map(file =>
+        [file, p.digest(fs.readFileSync(file))]);
+      assert.deepEqual(completion.evaluate(input), {});
+      assert.equal(p.git(['diff', '--binary']).toString(), before);
+      assert(fs.readFileSync('.git/index').equals(index));
+      assert.deepEqual(audit, p.proposalPaths(cfg, request.subSquad).sort().map(file =>
+        [file, p.digest(fs.readFileSync(file))]));
+      assert.equal(progress.hookStats().status, 'complete');
+    });
+  });
+  await test('valid actual blocked prefix permits stop while source authorization still denies Implement', () => {
+    fixtures(request);
+    completionFixture(request, write, ({ input, native }) => {
+      const { journal, events, root } = pipelineFixture(request, write);
+      journal.status = 'blocked';
+      journal.blockingReason = 'Synthetic genuine Risk Stop';
+      journal.stages = journal.stages.slice(0, 1);
+      write(root + 'pipeline.json', JSON.stringify(journal));
+      native(events.slice(0, 6));
+      assert.deepEqual(completion.evaluate(input), {});
+      assert.equal(progress.hookStats().status, 'blocked');
+      assert.throws(() => pipeline.sourceGate(request, journal, [{ path: 'GrubifyApi/source.cs' }]),
+        /completed Implement/);
+    });
+  });
+  await test('recorded gates and invalid blocked prefixes never cause a new domain dispatch', () => {
+    fixtures(request);
+    completionFixture(request, write, ({ input, native, events }) => {
+      native(events(['hve-squad:squad-scribe']));
+      const root = `.copilot-tracking/squad/members/${request.subSquad}/`;
+      write(root + 'decisions.md', '## Blocking findings\n\nRisk Stop: actual unresolved gate\n');
+      fs.unlinkSync(root + 'pipeline.json');
+      assert(completion.evaluate(input).reason.includes('Preserve the declared block'));
+      write(root + 'pipeline.json', JSON.stringify({ status: 'blocked', stages: [] }));
+      assert(completion.evaluate(input).reason.includes('Do NOT dispatch another domain role'));
+    });
+  });
+  await test('missing unsupported failed cancelled or overlapping native evidence cannot accept artifact completion', () => {
+    fixtures(request);
+    completionFixture(request, write, ({ input, native, events, filename }) => {
+      for (const value of [null, [{ type: 'subagent.completed', data: {} }],
+        [{ type: 'subagent.failed' }], [...events(['hve-squad:squad-scribe']),
+          { type: 'subagent.started', data: { toolCallId: 'bad', agentName: 'squad-lead' } }],
+        [{ type: 'subagent.started', data: { toolCallId: 'bad', agentName: 'squad-scribe' } },
+          { type: 'subagent.completed', data: { toolCallId: 'bad', cancelled: true } }]]) {
+        fs.rmSync(path.join(process.env.RUNNER_TEMP, 'squad-runtime', 'completion-status.json'), { force: true });
+        if (value) native(value); else fs.rmSync(filename, { force: true });
+        const result = completion.evaluate(input);
+        assert.equal(result.decision, 'block');
+        assert(result.reason.includes('Native dispatch evidence'));
+      }
+    });
+  });
+  await test('hook ignores arbitrary transcript paths and never exposes parser text or private event data', () => {
+    fixtures(request);
+    completionFixture(request, write, ({ input, native, events, filename }) => {
+      native([...events(['hve-squad:squad-scribe']), {
+        type: 'assistant.message', data: { content: 'PRIVATE MODEL SECRET', toolCallId: 'PRIVATE-ID' } }]);
+      input.transcriptPath = path.join(clone, 'SHOULD-NOT-BE-READ');
+      const result = completion.evaluate(input);
+      assert(result.reason.includes('next actual Plan') || result.reason.includes('next actual Research'));
+      write(filename, '{"PRIVATE PARSER SECRET": ]');
+      const text = JSON.stringify(completion.evaluate(input)) +
+        JSON.stringify(diagnostics.report(request.subSquad, 'success', 'failure', '0'));
+      for (const marker of ['PRIVATE', 'SHOULD-NOT-BE-READ', 'toolCallId', 'sessionId', request.eventId]) {
+        assert(!text.includes(marker));
+      }
+      for (const bad of [{ ...input, cwd: directory }, { ...input, sessionId: 'wrong' },
+        { ...input, stop_hook_active: undefined }, { ...input, stopReason: 'aborted' }]) {
+        assert.throws(() => completion.evaluate(bad), /root stop input/);
+      }
+      write('.watch-run/request.json', 'CHANGED PRIVATE REQUEST');
+      assert.throws(() => completion.evaluate(input), /Changed immutable request/);
+    });
+  });
+  await test('hook bounds no-progress and total blocks within one session, never restarts a CLI', () => {
+    fixtures(request);
+    completionFixture(request, write, ({ input, native, events }) => {
+      const names = ['hve-squad:squad-scribe'];
+      native(events(names));
+      for (let i = 0; i < 3; i++) assert.equal(completion.evaluate(input).decision, 'block');
+      assert.deepEqual(completion.evaluate({ ...input, stop_hook_active: true }), {});
+      assert.equal(progress.hookStats().status, 'no-progress');
+      fs.unlinkSync(path.join(process.env.RUNNER_TEMP, 'squad-runtime', 'completion-status.json'));
+      for (let i = 0; i < 8; i++) {
+        names.push('hve-squad:squad-scribe');
+        native(events(names));
+        assert.equal(completion.evaluate(input).decision, 'block');
+      }
+      names.push('hve-squad:squad-scribe');
+      native(events(names));
+      assert.deepEqual(completion.evaluate(input), {});
+      assert.equal(progress.hookStats().blocks, 8);
+      assert.equal(progress.hookStats().status, 'block-limit');
+    });
+  });
+  await test('hook entrypoint fails safely on malicious input without writes or parser messages', () => {
+    const script = path.join(original, 'scripts', 'squad-watch', 'completion-gate.cjs');
+    for (const input of ['{"PRIVATE": ]', 'x'.repeat(16385),
+      JSON.stringify({ transcriptPath: '.git/config', sessionId: 'private' })]) {
+      const result = spawnSync(process.execPath, [script], { input, encoding: 'utf8', stdio: 'pipe' });
+      assert.equal(result.status, 0);
+      const value = JSON.parse(result.stdout);
+      assert.equal(value.decision, 'block');
+      assert(value.reason.includes('cannot-confirm'));
+      assert(result.stderr.includes('no completion is established'));
+      assert(!/PRIVATE|\.git\/config|Unexpected token/.test(result.stdout + result.stderr));
+    }
+    assert.throws(() => completion.initialize('not-a-session'));
+    const previous = process.env.RUNNER_TEMP;
+    process.env.RUNNER_TEMP = path.join(clone, 'forbidden-runtime');
+    try { assert.throws(() => progress.privateRoot(), /outside checkout/); }
+    finally { process.env.RUNNER_TEMP = previous; }
+  });
+  await test('hook command default plugin cwd cannot redirect trusted checkout or request binding', () => {
+    fixtures(request);
+    completionFixture(request, write, ({ input, native, events }) => {
+      native(events(['hve-squad:squad-scribe']));
+      const pluginCwd = path.join(directory, 'plugin-command-cwd');
+      fs.mkdirSync(pluginCwd, { recursive: true });
+      const result = JSON.parse(execFileSync(process.execPath,
+        [path.join(original, 'scripts', 'squad-watch', 'completion-gate.cjs')], {
+          cwd: pluginCwd, env: { ...process.env, HVE_WATCH_REPO_ROOT: clone },
+          input: JSON.stringify(input), stdio: 'pipe'
+        }).toString());
+      assert.equal(result.decision, 'block');
+      assert(result.reason.includes('next actual Research'));
+      assert(!fs.existsSync(path.join(pluginCwd, '.copilot-tracking')));
+    });
+  });
+  await test('hook refuses linked event parents and untrusted manifest traversal paths', () => {
+    fixtures(request);
+    completionFixture(request, write, ({ input, native, events, filename }) => {
+      native(events(['hve-squad:squad-scribe', 'hve-squad:squad-researcher', 'hve-squad:squad-scribe']));
+      const root = `.copilot-tracking/squad/members/${request.subSquad}/`;
+      const journal = JSON.parse(fs.readFileSync(root + 'pipeline.json'));
+      journal.stages[0].artifact = 'research/../../.git/config';
+      write(root + 'pipeline.json', JSON.stringify(journal));
+      assert(completion.evaluate(input).reason.includes('actual Research role already completed'));
+      const eventDirectory = path.dirname(filename);
+      const target = path.join(process.env.RUNNER_TEMP, 'linked-event-target');
+      fs.mkdirSync(target, { recursive: true });
+      write(path.join(target, 'events.jsonl'), '{"PRIVATE LINKED TEXT": ]');
+      fs.rmSync(eventDirectory, { recursive: true });
+      fs.symlinkSync(target, eventDirectory, process.platform === 'win32' ? 'junction' : 'dir');
+      assert(completion.evaluate(input).reason.includes('Native dispatch evidence'));
+    });
+  });
+  await test('complete role evidence with missing final run summary requests final Scribe, not another role', () => {
+    fixtures(request);
+    completionFixture(request, write, ({ input, native }) => {
+      const fixture = pipelineFixture(request, write);
+      native(fixture.events);
+      fs.unlinkSync(fixture.root + 'history/autopilot-run-offline-fixture.md');
+      const result = completion.evaluate(input);
+      assert.equal(result.decision, 'block');
+      assert(result.reason.includes('final readback'));
+      assert(!result.reason.includes('next actual'));
+    });
+  });
 
   await test('every RPI role needs all ten consumption fields, not three empty strings', () => {
     fixtures(request);
@@ -441,6 +693,10 @@ async function run() {
       }
       write('scripts/squad-watch/runtime-plugin.json',
         fs.readFileSync(path.join(original, 'scripts', 'squad-watch', 'runtime-plugin.json')));
+      for (const file of ['policy.cjs', 'pipeline.cjs', 'runtime.cjs', 'progress.cjs',
+        'completion-gate.cjs', 'runtime-hooks.json']) {
+        write('scripts/squad-watch/' + file, fs.readFileSync(path.join(original, 'scripts', 'squad-watch', file)));
+      }
       const source = fs.readFileSync('.github/agents/squad-researcher.agent.md');
       runtime.assemble('runtime');
       const adapted = fs.readFileSync('runtime/agents/squad/squad-researcher.agent.md', 'utf8');
@@ -451,6 +707,15 @@ async function run() {
       assert(fs.readFileSync('.github/agents/squad-researcher.agent.md').equals(source));
       const manifest = JSON.parse(fs.readFileSync('runtime/plugin.json'));
       assert(manifest.skills.includes('skills/rpi-research/'));
+      assert.equal(manifest.$schema, undefined, 'Use verified legacy component paths, not Agent Plugins mixing');
+      assert.equal(manifest.hooks, 'hooks/hooks.json');
+      const hooks = JSON.parse(fs.readFileSync('runtime/hooks/hooks.json'));
+      assert.equal(hooks.version, 1);
+      assert.deepEqual(Object.keys(hooks.hooks), ['agentStop']);
+      assert.equal(hooks.hooks.agentStop[0].env.HVE_SQUAD_PLUGIN_ROOT, '${PLUGIN_ROOT}');
+      assert.equal(hooks.hooks.agentStop[0].timeoutSec, 10);
+      assert(fs.readFileSync('runtime/scripts/completion-gate.cjs').equals(
+        fs.readFileSync(path.join(original, 'scripts/squad-watch/completion-gate.cjs'))));
       fs.unlinkSync('.github/agents/squad-implementor.agent.md');
       assert.throws(() => runtime.assemble('missing-role-runtime'), /not deployed/);
     } finally { process.chdir(clone); }
@@ -761,10 +1026,15 @@ async function run() {
     for (const script of ['run-squad.sh', 'run-review.sh']) {
       const launcher = fs.readFileSync(path.join(original, 'scripts', 'squad-watch', script), 'utf8');
       assert(launcher.includes('readonly REPO_ROOT="$PWD"'));
+      assert(launcher.includes('export HVE_WATCH_REPO_ROOT="$REPO_ROOT"'));
       assert(launcher.includes('-C "$REPO_ROOT"'));
       assert(launcher.includes('--add-dir "$REPO_ROOT"'));
       assert(launcher.includes('--plugin-dir "$RUNTIME_PLUGIN"'));
       assert(launcher.includes('--agent hve-squad:squad-federation-coordinator'));
+      assert(launcher.includes('completion-gate.cjs" init "$SESSION_ID"'));
+      assert(launcher.includes('30m'));
+      assert(launcher.includes('--max-ai-credits "$CREDITS"'));
+      assert.equal((launcher.match(/^\s+copilot --no-auto-update/gm) || []).length, 1);
     }
   });
   if (process.platform !== 'win32') {
@@ -773,11 +1043,11 @@ async function run() {
         const bin = path.join(clone, '.watch-run', 'mock-bin');
         const output = path.join(clone, '.watch-run', 'outputs');
         const argsFile = path.join(clone, '.watch-run', 'copilot-args');
-        const runnerTemp = path.join(clone, '.watch-run', 'runner-temp');
+        const runnerTemp = path.join(directory, script + '-runner-temp');
         const plugin = path.join(runnerTemp, 'squad-tools', 'hve-squad-runtime');
         const helper = path.join(runnerTemp, 'squad-runtime', 'helper');
         write(path.join(plugin, 'plugin.json'), '{}');
-        for (const name of ['runtime', 'pipeline', 'policy']) {
+        for (const name of ['runtime', 'pipeline', 'policy', 'progress', 'completion-gate']) {
           write(path.join(helper, name + '.cjs'),
             fs.readFileSync(path.join(original, 'scripts', 'squad-watch', name + '.cjs')));
         }
@@ -798,6 +1068,7 @@ async function run() {
         for (const code of [0, 7, 124]) {
           fs.rmSync(path.join(runnerTemp, 'squad-runtime', 'copilot-home'), { recursive: true, force: true });
           fs.rmSync(path.join(runnerTemp, 'squad-runtime', 'dispatch.json'), { force: true });
+          fs.rmSync(path.join(runnerTemp, 'squad-runtime', 'completion-context.json'), { force: true });
           write(output, '');
           write(argsFile, '');
           let stdout;
@@ -822,6 +1093,7 @@ async function run() {
           assert.equal(args[args.indexOf('--add-dir') + 1], clone);
           assert.equal(args[args.indexOf('--plugin-dir') + 1], plugin);
           assert(args.includes('hve-squad:squad-federation-coordinator'));
+          assert.equal(args[args.indexOf('--max-ai-credits') + 1], '90');
         }
       });
     }

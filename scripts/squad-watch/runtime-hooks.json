@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "agentStop": [
+      {
+        "type": "command",
+        "bash": "node \"$HVE_SQUAD_PLUGIN_ROOT/scripts/completion-gate.cjs\"",
+        "powershell": "$ErrorActionPreference = 'Stop'; node (Join-Path $env:HVE_SQUAD_PLUGIN_ROOT 'scripts/completion-gate.cjs'); exit $LASTEXITCODE",
+        "env": {
+          "HVE_SQUAD_PLUGIN_ROOT": "${PLUGIN_ROOT}"
+        },
+        "timeoutSec": 10
+      }
+    ]
+  }
+}

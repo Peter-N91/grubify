@@ -30,7 +30,7 @@ function credits(value, cfg) {
 
 function watchAuditContract(request) {
   return [
-    'VALIDATOR-EXACT AUDIT BARRIER: complete these files before domain work. Do',
+    'PHASE 1 — BOOTSTRAP STATE ONLY: complete initialization before domain work. Do',
     'not improvise legacy headers or state keys. federation.md must contain the exact',
     'six-column header "| Sub-squad | Profile | Kind | Location | Owner | Description |"',
     `and exactly one current row whose cells are "${request.subSquad}", a profile,`,
@@ -46,11 +46,36 @@ function watchAuditContract(request) {
     `Member state.json must use schemaVersion "1.4" and trigger.source="${request.source}",`,
     `trigger.ref="${request.ref}", trigger.eventId="${request.eventId}",`,
     `trigger.actor="${request.actor}", and trigger.runId="autopilot-run-<id>".`,
-    'The member must also have non-empty team.md, consumption.md, decisions.md with',
-    'a heading exactly "## Blocking findings", history/autopilot-run-<id>.md, and',
-    'at least one additional substantive history/<actual role>.md. The federation',
-    `must have non-empty history/${request.subSquad}.md. Re-read every exact field`,
-    'before domain work; malformed audit is not a valid result.'
+    'The member initialization seeds team.md, routing.md, consumption.md,',
+    'consumption-rates.md, decisions.md, notifications.md and history/Squad Scribe.md',
+    'with this actual initialization handoff Consumption — Orchestration block.',
+    'Use references/scribe-payload-template.md: exactly ONE payloadType and ONE',
+    'squadRoot per Scribe dispatch. On blank init, first send payloadType initialization',
+    'at squadRoot .copilot-tracking/squad/ with confirmed federation registry,',
+    'meta-routes, notify and initial member-history names; explicitly load',
+    'references/scribe-cold-federation.md. This does NOT initialize the member.',
+    `Then send a separate payloadType initialization at squadRoot .copilot-tracking/squad/members/${request.subSquad}/`,
+    'with the coordinator-resolved full roster rows and ledgerCommand. Load',
+    'references/scribe-cold-init-and-seeding.md; never derive or shorten agent names.',
+    'Member initialization expectedPostWriteCounts: zero role-history entries,',
+    'one new Scribe orchestration consumption block. Federation member-history',
+    'records carry no role consumption, per the federation history contract.',
+    'Wait and read back each scope before the next dispatch. Reuse verified owned',
+    'state without replacing prior bytes; repair missing initialization via Scribe.',
+    'Bootstrap does NOT require future role histories or a completed run summary.',
+    'Never preseed role history to satisfy a final validator. Once bootstrap reads',
+    'back correctly, immediately dispatch Research; initialization is NOT terminal.',
+    'PHASE 2 — FINAL HANDOFF ONLY, after actual work or a genuine blocked prefix:',
+    'decisions.md needs exactly "## Blocking findings"; member',
+    'history/autopilot-run-<id>.md summarizes the actual targeted member run.',
+    'For the inner-run summary use the member autopilot-run schema in',
+    'references/scribe-cold-gates-and-verdicts.md with payloadType autopilot-run summary',
+    'scoped to the member. This is NOT a federation meta-run summary; do not apply',
+    'the federation-only summary template or overwrite shared aggregate totals.',
+    `Federation history/${request.subSquad}.md records real registration/outcome.`,
+    'Every completed stage needs its exact role history and actual artifact; Scribe',
+    'orchestration history and pipeline.json must reflect only real dispatches.',
+    'Re-read final evidence before returning. Malformed/partial evidence is not completion.'
   ];
 }
 
